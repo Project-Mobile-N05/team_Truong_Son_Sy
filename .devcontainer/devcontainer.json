@@ -1,0 +1,14 @@
+{
+  "name": "flutter-dev",
+  "image": "ghcr.io/cirruslabs/flutter:stable",
+  "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}/student_deadline_manager",
+  "runArgs": [
+    "-p",
+    "8080:8080"
+  ],
+  "forwardPorts": [
+    8080
+  ],
+  "postCreateCommand": "cd student_deadline_manager && flutter pub get",
+  "remoteUser": "root"
+}
