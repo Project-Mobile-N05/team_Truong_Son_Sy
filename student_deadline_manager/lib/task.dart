@@ -1,23 +1,29 @@
 class Task {
-  String title = "Nộp bài tập Flutter";
+  String title = "Báo cáo Đồ án Flutter";
   String deadline = "16/09/2026";
-  String description = "Tạo Lớp Quản lý công việc và commit lên GitHub";
+  String description = "Xây dựng giao diện và lớp quản lý deadline";
   bool isCompleted = false;
 
-  // Phương thức thiết lập thông tin công việc (Setter)
-  void setTask(String title, String deadline, String description) {
+  // Setter cập nhật thông tin công việc
+  void setTask(String title, String deadline, String description, bool isCompleted) {
     this.title = title;
     this.deadline = deadline;
     this.description = description;
+    this.isCompleted = isCompleted;
   }
 
-  // Phương thức lấy chuỗi tóm tắt công việc (Getter)
-  String getTaskSummary() {
-    return "$title | Deadline: $deadline";
+  // Getter lấy thông tin tổng quan
+  String getTaskInfo() {
+    return "$title - Deadline: $deadline ($description)";
   }
 
-  // Phương thức cập nhật trạng thái
-  void toggleStatus() {
-    isCompleted = !isCompleted;
+  // Getter lấy tiêu đề
+  String getTitle() {
+    return title;
+  }
+
+  // Getter lấy hạn chót
+  String getDeadline() {
+    return deadline;
   }
 }
