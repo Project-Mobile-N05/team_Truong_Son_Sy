@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'subject.dart';
 
 void main() {
   runApp(const MyApp());
@@ -55,6 +56,12 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   int _counter = 0;
+  final MonHoc monHoc = MonHoc(
+  maMonHoc: 'MOB101',
+  tenMonHoc: 'Lập trình thiết bị di động',
+  giangVien: 'Giảng viên',
+  soTinChi: 3,
+);
 
   void _incrementCounter() {
     setState(() {
@@ -104,12 +111,36 @@ class _MyHomePageState extends State<MyHomePage> {
           // wireframe for each widget.
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Text('You have pushed the button this many times:'),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-          ],
+  const Text('You have pushed the button this many times:'),
+  Text(
+    '$_counter',
+    style: Theme.of(context).textTheme.headlineMedium,
+  ),
+
+  const SizedBox(height: 30),
+
+  const Text(
+    'THÔNG TIN MÔN HỌC',
+    style: TextStyle(
+      fontSize: 20,
+      fontWeight: FontWeight.bold,
+    ),
+  ),
+
+  const SizedBox(height: 10),
+
+  Text('Mã môn học: ${monHoc.maMonHoc}'),
+  Text('Tên môn học: ${monHoc.tenMonHoc}'),
+  Text('Giảng viên: ${monHoc.giangVien}'),
+  Text('Số tín chỉ: ${monHoc.soTinChi}'),
+
+  const SizedBox(height: 10),
+
+  Text(
+    monHoc.getThongTinMonHoc(),
+    textAlign: TextAlign.center,
+  ),
+],
         ),
       ),
       floatingActionButton: FloatingActionButton(
