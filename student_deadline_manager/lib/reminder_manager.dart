@@ -1,57 +1,44 @@
-import 'package:flutter/material.dart';
-import 'reminder_manager.dart';
+import 'base_manager.dart';
 
-class ReminderScreen extends StatelessWidget {
-  ReminderScreen({super.key});
+/// Dữ liệu nhắc nhở (kế thừa BaseEntity).
+class ReminderData extends BaseEntity {
+  final String title;
+  final String dueDate;
+  final String status;
 
-  final ReminderManager reminderManager = ReminderManager();
+  const ReminderData({
+    required this.title,
+    required this.dueDate,
+    required this.status,
+  });
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Quản lý nhắc nhở', style: TextStyle(fontWeight: FontWeight.bold)),
-        centerTitle: true,
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.deepPurple.shade50,
-                borderRadius: BorderRadius.circular(8)
-              ),
-              child: const Row(
-                children: [
-                  Icon(Icons.notifications_active, color: Colors.deepPurple),
-                  SizedBox(width: 10),
-                  Text('1 nhắc nhở đang bật', style: TextStyle(color: Colors.deepPurple, fontWeight: FontWeight.bold)),
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
-            const Text('Nhắc nhở của bạn', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 10),
-            Card(
-              elevation: 2,
-              child: ListTile(
-                leading: const Icon(Icons.assignment, color: Colors.blue),
-                title: Text(reminderManager.title, style: const TextStyle(fontWeight: FontWeight.bold)),
-                subtitle: Text('Hạn: ${reminderManager.dueDate}\nTrạng thái: ${reminderManager.status}'),
-                isThreeLine: true,
-                trailing: Switch(
-                  value: true,
-                  onChanged: (bool value) {},
-                  activeColor: Colors.deepPurple,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+  Map<String, Object> toMap() => {
+        'title': title,
+        'dueDate': dueDate,
+        'status': status,
+      };
+}
+
+/// CÂU 2: ReminderManager extends BaseManager<ReminderData>
+class ReminderManager extends BaseManager<ReminderData> {
+  ReminderManager()
+      : super(const ReminderData(
+          title: "Nộp Bài tập thực hành Flutter",
+          dueDate: "16/09/2026",
+          status: "Đang thực hiện",
+        ));
+
+  String get title => data.title;
+  String get dueDate => data.dueDate;
+  String get status => data.status;
+
+  void setReminder(String title, String dueDate, String status) {
+    setData(ReminderData(title: title, dueDate: dueDate, status: status));
   }
+
+  @override
+  String describe() => "Nhắc nhở: $title - Hạn: $dueDate [$status]";
+
+  String getReminderInfo() => describe();
 }
