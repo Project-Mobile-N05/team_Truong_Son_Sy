@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'project_entity.dart';
 import 'subject.dart';
 import 'subject_card.dart';
 import 'statistics_screen.dart';
@@ -19,8 +20,9 @@ class _SubjectScreenState extends State<SubjectScreen> {
   final _giangVienController = TextEditingController();
   final _soTinChiController = TextEditingController();
 
-  final List<MonHoc> _danhSachMonHoc = [];
+ final ProjectCollection<MonHoc> _khoMonHoc = ProjectCollection<MonHoc>();
 
+  List<MonHoc> get _danhSachMonHoc => _khoMonHoc.items;
   void _themMonHoc() {
     if (!_formKey.currentState!.validate()) {
       return;
