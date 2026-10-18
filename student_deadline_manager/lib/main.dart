@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import './task.dart'; // Import lớp Task từ file task.dart
+import './task.dart';
+import './base_entity.dart';
 
 void main() {
   runApp(const SyApp());
@@ -171,10 +172,36 @@ class CalendarTaskScreen extends StatefulWidget {
 }
 
 class _CalendarTaskScreenState extends State<CalendarTaskScreen> {
-  final Task _task = Task();
+  // Sử dụng GenericManager để quản lý danh sách Task
+  final GenericManager<Task> _taskManager = GenericManager<Task>();
+
+  @override
+  void initState() {
+    super.initState();
+    // Khởi tạo danh sách dữ liệu bằng GenericManager
+    _taskManager.add(Task(
+      id: "TASK_01",
+      title: "Báo cáo Đồ án Flutter",
+      deadline: "16/09/2026",
+      description: "Xây dựng giao diện và lớp quản lý deadline",
+      isCompleted: false,
+    ));
+    _taskManager.add(Task(
+      id: "TASK_02",
+      title: "Nộp bài tập Tuần 4",
+      deadline: "20/09/2026",
+      description: "Áp dụng Generics và Object Class",
+      isCompleted: true,
+    ));
+
+    // Gọi phương thức kiểm tra Class metadata (Class class / Type)
+    _taskManager.printManagerInfo();
+  }
 
   @override
   Widget build(BuildContext context) {
+    final tasks = _taskManager.items;
+
     return BaseScreenLayout(
       bodyContent: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -192,42 +219,59 @@ class _CalendarTaskScreenState extends State<CalendarTaskScreen> {
               borderRadius: BorderRadius.circular(12),
             ),
             child: Column(
-              children: const [
-                Icon(Icons.calendar_month, size: 50, color: Colors.blueAccent),
-                SizedBox(height: 6),
-                Text('Lịch Học & Lịch Nộp Bài', style: TextStyle(fontWeight: FontWeight.bold)),
-                Text('Tháng 09 / 2026', style: TextStyle(color: Colors.grey, fontSize: 12)),
+              children: [
+                const Icon(Icons.calendar_month, size: 50, color: Colors.blueAccent),
+                const SizedBox(height: 6),
+                const Text('Lịch Học & Lịch Nộp Bài', style: TextStyle(fontWeight: FontWeight.bold)),
+                const Text('Tháng 09 / 2026', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                const SizedBox(height: 4),
+                // Hiển thị tên Class runtime đại diện (Class/Type Metadata)
+                Text(
+                  'Thực thể quản lý: ${_taskManager.entityClass}',
+                  style: const TextStyle(fontSize: 11, color: Colors.blueGrey, fontStyle: FontStyle.italic),
+                ),
               ],
             ),
           ),
           const SizedBox(height: 16),
 
-          const Text('Công việc hiện tại:', style: TextStyle(fontWeight: FontWeight.bold)),
+          const Text('Danh sách công việc (Generic List):', style: TextStyle(fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
-          Card(
-            elevation: 2,
-            child: Padding(
-              padding: const EdgeInsets.all(12.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Công việc: ${_task.getTitle()}',
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+
+          // Hiển thị danh sách Task lấy từ GenericManager
+          ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: tasks.length,
+            itemBuilder: (context, index) {
+              final task = tasks[index];
+              return Card(
+                elevation: 2,
+                margin: const EdgeInsets.only(bottom: 10),
+                child: Padding(
+                  padding: const EdgeInsets.all(12.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Công việc [ID: ${task.id}]: ${task.getTitle()}',
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Hạn chót: ${task.getDeadline()}',
+                        style: const TextStyle(fontSize: 14, color: Colors.redAccent, fontWeight: FontWeight.w600),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        task.getTaskInfo(),
+                        style: const TextStyle(fontSize: 13, color: Colors.black87),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Hạn chót: ${_task.getDeadline()}',
-                    style: const TextStyle(fontSize: 14, color: Colors.redAccent, fontWeight: FontWeight.w600),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    _task.getTaskInfo(),
-                    style: const TextStyle(fontSize: 13, color: Colors.black87),
-                  ),
-                ],
-              ),
-            ),
+                ),
+              );
+            },
           ),
         ],
       ),
@@ -253,7 +297,7 @@ class AboutScreen extends StatelessWidget {
           Text('- Chức năng: Quản lý công việc/deadline & Lịch'),
           Text('- Sinh viên phát triển: Sỹ'),
           Text('- Trường Đại học Phenikaa'),
-          Text('- Bài thực hành Tuần 4 (Column Layout & BottomNav)'),
+          Text('- Bài thực hành: Áp dụng Generics & OOP Generalization'),
         ],
       ),
     );
