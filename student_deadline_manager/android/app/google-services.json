@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "488568315628",
+    "project_id": "studentdeadline",
+    "storage_bucket": "studentdeadline.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:488568315628:android:7f02cedfbf504803c6cfc9",
+        "android_client_info": {
+          "package_name": "com.example.student_deadline_manager"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCEKjGUgsaU9AxSI9KcTMbF8cqmVBLXOYo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
