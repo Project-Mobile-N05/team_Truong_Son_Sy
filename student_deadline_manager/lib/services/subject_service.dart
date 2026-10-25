@@ -1,6 +1,6 @@
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'subject.dart';
+import '../models/subject.dart';
 
 class SubjectService {
   final collection =

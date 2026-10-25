@@ -1,9 +1,8 @@
-
 import 'package:flutter/material.dart';
 
-import 'project_entity.dart';
-import 'subject.dart';
-import 'subject_service.dart';
+import '../models/subject.dart';
+import '../services/subject_service.dart';
+import '../controllers/subject_controller.dart';
 import 'statistics_screen.dart';
 
 const _primary = Color(0xFF5147BD);
@@ -25,32 +24,26 @@ class _SubjectScreenState extends State<SubjectScreen> {
   final _soTinChiController = TextEditingController();
   final _timKiemController = TextEditingController();
 
-  final SubjectService _service = SubjectService();
-  final ProjectCollection<MonHoc> _khoMonHoc =
-      ProjectCollection<MonHoc>();
+  final SubjectController _controller = SubjectController(SubjectService());
 
-  bool _dangTai = true;
-  bool _dangLuu = false;
+  bool get _dangTai => _controller.isLoading;
+  bool get _dangLuu => _controller.isSaving;
   bool _moForm = true;
 
-  List<MonHoc> get _danhSachMonHoc => _khoMonHoc.items;
+  List<MonHoc> get _danhSachMonHoc => _controller.danhSachMonHoc;
 
-  List<MonHoc> get _ketQuaTimKiem {
-    final tuKhoa = _timKiemController.text.trim().toLowerCase();
-
-    if (tuKhoa.isEmpty) return _danhSachMonHoc;
-
-    return _danhSachMonHoc.where((mon) {
-      return mon.maMonHoc.toLowerCase().contains(tuKhoa) ||
-          mon.tenMonHoc.toLowerCase().contains(tuKhoa) ||
-          mon.giangVien.toLowerCase().contains(tuKhoa);
-    }).toList();
-  }
+  List<MonHoc> get _ketQuaTimKiem =>
+      _controller.timKiem(_timKiemController.text);
 
   @override
   void initState() {
     super.initState();
+    _controller.addListener(_capNhatGiaoDien);
     _layDanhSach();
+  }
+
+  void _capNhatGiaoDien() {
+    if (mounted) setState(() {});
   }
 
   void _thongBao(String message) {
@@ -61,31 +54,13 @@ class _SubjectScreenState extends State<SubjectScreen> {
       );
   }
 
-  // Đọc dữ liệu từ Firebase
+  // Đọc dữ liệu từ Firebase qua Controller
   Future<void> _layDanhSach() async {
-    setState(() => _dangTai = true);
-
     try {
-      final danhSach = await _service.layDanhSach();
-
-      if (!mounted) return;
-
-      setState(() {
-        for (final mon in List<MonHoc>.from(_khoMonHoc.items)) {
-          _khoMonHoc.removeById(mon.maMonHoc);
-        }
-
-        for (final mon in danhSach) {
-          _khoMonHoc.add(mon);
-        }
-      });
+      await _controller.layDanhSach();
     } catch (e) {
       if (!mounted) return;
       _thongBao('Lỗi tải môn học: $e');
-    } finally {
-      if (mounted) {
-        setState(() => _dangTai = false);
-      }
     }
   }
 
@@ -94,30 +69,16 @@ class _SubjectScreenState extends State<SubjectScreen> {
     if (_dangTai || _dangLuu) return;
     if (!_formKey.currentState!.validate()) return;
 
-    final ma = _maMonHocController.text.trim();
-
-    if (_khoMonHoc.findById(ma) != null) {
-      _thongBao('Mã môn học đã tồn tại');
-      return;
-    }
-
     final monHoc = MonHoc(
-      maMonHoc: ma,
+      maMonHoc: _maMonHocController.text.trim(),
       tenMonHoc: _tenMonHocController.text.trim(),
       giangVien: _giangVienController.text.trim(),
       soTinChi: int.parse(_soTinChiController.text.trim()),
     );
 
-    setState(() => _dangLuu = true);
-
     try {
-      await _service.themMonHoc(monHoc);
-
+      await _controller.themMonHoc(monHoc);
       if (!mounted) return;
-
-      setState(() {
-        _khoMonHoc.add(monHoc);
-      });
 
       _maMonHocController.clear();
       _tenMonHocController.clear();
@@ -126,9 +87,8 @@ class _SubjectScreenState extends State<SubjectScreen> {
 
       _thongBao('Thêm môn học thành công');
     } catch (e) {
-      if (mounted) _thongBao('Lỗi thêm môn học: $e');
-    } finally {
-      if (mounted) setState(() => _dangLuu = false);
+      if (!mounted) return;
+      _thongBao('Lỗi thêm môn học: $e');
     }
   }
 
@@ -223,23 +183,13 @@ class _SubjectScreenState extends State<SubjectScreen> {
 
     if (monDaSua == null || !mounted) return;
 
-    setState(() => _dangLuu = true);
-
     try {
-      await _service.suaMonHoc(monDaSua);
-
+      await _controller.suaMonHoc(monDaSua);
       if (!mounted) return;
-
-      setState(() {
-        _khoMonHoc.removeById(monHoc.maMonHoc);
-        _khoMonHoc.add(monDaSua);
-      });
-
       _thongBao('Sửa môn học thành công');
     } catch (e) {
-      if (mounted) _thongBao('Lỗi sửa môn học: $e');
-    } finally {
-      if (mounted) setState(() => _dangLuu = false);
+      if (!mounted) return;
+      _thongBao('Lỗi sửa môn học: $e');
     }
   }
 
@@ -269,22 +219,13 @@ class _SubjectScreenState extends State<SubjectScreen> {
 
     if (xacNhan != true || !mounted) return;
 
-    setState(() => _dangLuu = true);
-
     try {
-      await _service.xoaMonHoc(monHoc.maMonHoc);
-
+      await _controller.xoaMonHoc(monHoc.maMonHoc);
       if (!mounted) return;
-
-      setState(() {
-        _khoMonHoc.removeById(monHoc.maMonHoc);
-      });
-
       _thongBao('Xóa môn học thành công');
     } catch (e) {
-      if (mounted) _thongBao('Lỗi xóa môn học: $e');
-    } finally {
-      if (mounted) setState(() => _dangLuu = false);
+      if (!mounted) return;
+      _thongBao('Lỗi xóa môn học: $e');
     }
   }
 
@@ -593,6 +534,8 @@ class _SubjectScreenState extends State<SubjectScreen> {
 
   @override
   void dispose() {
+    _controller.removeListener(_capNhatGiaoDien);
+    _controller.dispose();
     _maMonHocController.dispose();
     _tenMonHocController.dispose();
     _giangVienController.dispose();

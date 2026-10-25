@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'subject.dart';
+import '../models/subject.dart';
 
 class SubjectCard extends StatelessWidget {
   final MonHoc monHoc;

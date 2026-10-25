@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'subject.dart';
+import '../models/subject.dart';
 
 class StatisticsScreen extends StatelessWidget {
   final List<MonHoc> danhSachMonHoc;
