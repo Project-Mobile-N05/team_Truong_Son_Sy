@@ -50,19 +50,19 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyBJEOlQPuQ-J6V3ntuIQY_dAgxf97gUPrw',
-    appId: '1:488568315628:web:beb38f8d66610fb3c6cfc9',
-    messagingSenderId: '488568315628',
-    projectId: 'studentdeadline',
-    authDomain: 'studentdeadline.firebaseapp.com',
-    storageBucket: 'studentdeadline.firebasestorage.app',
+    apiKey: 'AIzaSyDRGe3Od5lx5WOXwkdqg3A_o7pzMiNe4s4',
+    appId: '1:990722967376:web:178d28dec8e7d5808d8e55',
+    messagingSenderId: '990722967376',
+    projectId: 'studendealinemanager',
+    authDomain: 'studendealinemanager.firebaseapp.com',
+    storageBucket: 'studendealinemanager.firebasestorage.app',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyCEKjGUgsaU9AxSI9KcTMbF8cqmVBLXOYo',
-    appId: '1:488568315628:android:7f02cedfbf504803c6cfc9',
-    messagingSenderId: '488568315628',
-    projectId: 'studentdeadline',
-    storageBucket: 'studentdeadline.firebasestorage.app',
+    apiKey: 'AIzaSyAM1ZEuW9Efe1NlllLITnyxU9jTDC-TG6g',
+    appId: '1:990722967376:android:ecbb8f1ff9ce2c018d8e55',
+    messagingSenderId: '990722967376',
+    projectId: 'studendealinemanager',
+    storageBucket: 'studendealinemanager.firebasestorage.app',
   );
 }
