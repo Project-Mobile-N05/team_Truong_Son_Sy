@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../screens/account_screen.dart';
 import '../screens/home_screen.dart';
 import '../screens/reminder_screen.dart';
+import '../screens/subject_screen.dart';
 
 /// Một tab của thanh điều hướng dưới.
 class AppTab {
@@ -42,7 +43,14 @@ class _MainNavigationState extends State<MainNavigation> {
       selectedIcon: Icons.home,
       screen: HomeScreen(onOpen: _open),
     ),
-    // Sơn: AppTab(key: 'subject', ...), AppTab(key: 'stats', ...)
+    const AppTab(
+      key: 'subject',
+      label: 'Môn học',
+      icon: Icons.menu_book_outlined,
+      selectedIcon: Icons.menu_book,
+      screen: SubjectScreen(),
+),
+
     // Sỹ:  AppTab(key: 'calendar', ...), AppTab(key: 'task', ...)
     const AppTab(
       key: 'reminder',
