@@ -1,8 +1,4 @@
-abstract class BaseEntity {
-  const BaseEntity();
-
-  Map<String, Object> toMap();
-}
+import '../models/base_entity.dart';
 
 abstract class BaseManager<T extends BaseEntity> {
   T _data;
