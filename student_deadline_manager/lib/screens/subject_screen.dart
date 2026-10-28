@@ -1,12 +1,35 @@
 import 'package:flutter/material.dart';
 
 import '../models/subject.dart';
+import '../models/task_status.dart';
+import '../services/auth_service.dart';
 import '../services/subject_service.dart';
+import '../services/task_service.dart';
 import '../controllers/subject_controller.dart';
 import 'statistics_screen.dart';
+import 'subject/widgets/subject_card.dart';
+import 'subject/widgets/subject_tab_button.dart';
+
+part 'subject/subject_search_screen.dart';
+part 'subject/subject_edit_dialog.dart';
+part 'subject/subject_form.dart';
 
 const _primary = Color(0xFF5147BD);
 const _background = Color(0xFFF7F8FC);
+
+class _SubjectSearchFilters {
+  final String query;
+  final bool? archived;
+  final int? credits;
+  final String? teacher;
+
+  const _SubjectSearchFilters({
+    required this.query,
+    required this.archived,
+    required this.credits,
+    required this.teacher,
+  });
+}
 
 class SubjectScreen extends StatefulWidget {
   const SubjectScreen({super.key});
@@ -25,15 +48,31 @@ class _SubjectScreenState extends State<SubjectScreen> {
   final _timKiemController = TextEditingController();
 
   final SubjectController _controller = SubjectController(SubjectService());
+  final TaskService _taskService = TaskService();
 
   bool get _dangTai => _controller.isLoading;
   bool get _dangLuu => _controller.isSaving;
   bool _moForm = true;
+  bool _hienThiLuuTru = false;
+  bool _locTatCaTrangThai = false;
+  bool _dangTaiDeadline = true;
+  int? _locTinChi;
+  String? _locGiangVien;
+  final Set<String> _dangCapNhatLuuTru = {};
+  Map<String, int> _soDeadlineTheoMon = {};
 
   List<MonHoc> get _danhSachMonHoc => _controller.danhSachMonHoc;
 
-  List<MonHoc> get _ketQuaTimKiem =>
-      _controller.timKiem(_timKiemController.text);
+  List<MonHoc> get _ketQuaTimKiem => _controller
+      .timKiem(_timKiemController.text)
+      .where(
+        (monHoc) =>
+            (_locTatCaTrangThai || monHoc.daLuuTru == _hienThiLuuTru) &&
+            (_locTinChi == null || monHoc.soTinChi == _locTinChi) &&
+            (_locGiangVien == null || monHoc.giangVien == _locGiangVien) &&
+            !_dangCapNhatLuuTru.contains(monHoc.maMonHoc),
+      )
+      .toList();
 
   @override
   void initState() {
@@ -49,9 +88,7 @@ class _SubjectScreenState extends State<SubjectScreen> {
   void _thongBao(String message) {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(content: Text(message)),
-      );
+      ..showSnackBar(SnackBar(content: Text(message)));
   }
 
   // Đọc dữ liệu từ Firebase qua Controller
@@ -61,6 +98,44 @@ class _SubjectScreenState extends State<SubjectScreen> {
     } catch (e) {
       if (!mounted) return;
       _thongBao('Lỗi tải môn học: $e');
+    }
+    await _laySoDeadline();
+  }
+
+  Future<void> _laySoDeadline() async {
+    final uid = AuthService().currentUid;
+    if (uid == null) {
+      if (!mounted) return;
+      setState(() => _dangTaiDeadline = false);
+      _thongBao('Không thể tải deadline: Bạn chưa đăng nhập');
+      return;
+    }
+
+    if (mounted) {
+      setState(() {
+        _dangTaiDeadline = true;
+        _soDeadlineTheoMon = {};
+      });
+    }
+    try {
+      final tasks = await _taskService.findAll(uid);
+      final counts = <String, int>{};
+      for (final task in tasks) {
+        final subjectId = task.subjectId;
+        if (subjectId != null && task.status != TaskStatus.completed) {
+          counts.update(subjectId, (count) => count + 1, ifAbsent: () => 1);
+        }
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _soDeadlineTheoMon = counts;
+        _dangTaiDeadline = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _dangTaiDeadline = false);
+      _thongBao('Lỗi tải deadline: $e');
     }
   }
 
@@ -92,105 +167,36 @@ class _SubjectScreenState extends State<SubjectScreen> {
     }
   }
 
-  // Sửa môn học
-  Future<void> _suaMonHoc(MonHoc monHoc) async {
-    if (_dangTai || _dangLuu) return;
+  void _chuyenTrangThaiForm() {
+    setState(() => _moForm = !_moForm);
+  }
 
-    final formKey = GlobalKey<FormState>();
-
-    String tenMon = monHoc.tenMonHoc;
-    String giangVien = monHoc.giangVien;
-    String tinChi = monHoc.soTinChi.toString();
-
-    final monDaSua = await showDialog<MonHoc>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Sửa môn học'),
-        content: SingleChildScrollView(
-          child: Form(
-            key: formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text('Mã môn: ${monHoc.maMonHoc}'),
-
-                TextFormField(
-                  initialValue: tenMon,
-                  decoration: const InputDecoration(
-                    labelText: 'Tên môn học',
-                  ),
-                  onChanged: (value) => tenMon = value,
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Vui lòng nhập tên môn học';
-                    }
-                    return null;
-                  },
-                ),
-
-                TextFormField(
-                  initialValue: giangVien,
-                  decoration: const InputDecoration(
-                    labelText: 'Giảng viên',
-                  ),
-                  onChanged: (value) => giangVien = value,
-                ),
-
-                TextFormField(
-                  initialValue: tinChi,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Số tín chỉ',
-                  ),
-                  onChanged: (value) => tinChi = value,
-                  validator: (value) {
-                    final so = int.tryParse(value?.trim() ?? '');
-
-                    if (so == null || so <= 0) {
-                      return 'Số tín chỉ phải là số nguyên dương';
-                    }
-                    return null;
-                  },
-                ),
-              ],
-            ),
-          ),
+  Future<void> _moBoLoc() async {
+    final filters = await Navigator.push<_SubjectSearchFilters>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => _SubjectSearchScreen(
+          danhSachMonHoc: _danhSachMonHoc
+              .where((monHoc) => !_dangCapNhatLuuTru.contains(monHoc.maMonHoc))
+              .toList(),
+          tuKhoaBanDau: _timKiemController.text,
+          trangThaiBanDau: _locTatCaTrangThai ? null : _hienThiLuuTru,
+          tinChiBanDau: _locTinChi,
+          giangVienBanDau: _locGiangVien,
+          onEdit: _suaMonHoc,
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Hủy'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              if (!formKey.currentState!.validate()) return;
-
-              Navigator.pop(
-                dialogContext,
-                MonHoc(
-                  maMonHoc: monHoc.maMonHoc,
-                  tenMonHoc: tenMon.trim(),
-                  giangVien: giangVien.trim(),
-                  soTinChi: int.parse(tinChi.trim()),
-                ),
-              );
-            },
-            child: const Text('Lưu'),
-          ),
-        ],
       ),
     );
-
-    if (monDaSua == null || !mounted) return;
-
-    try {
-      await _controller.suaMonHoc(monDaSua);
-      if (!mounted) return;
-      _thongBao('Sửa môn học thành công');
-    } catch (e) {
-      if (!mounted) return;
-      _thongBao('Lỗi sửa môn học: $e');
-    }
+    if (filters == null || !mounted) return;
+    setState(() {
+      _timKiemController.text = filters.query;
+      _locTatCaTrangThai = filters.archived == null;
+      if (filters.archived != null) {
+        _hienThiLuuTru = filters.archived!;
+      }
+      _locTinChi = filters.credits;
+      _locGiangVien = filters.teacher;
+    });
   }
 
   // Xóa môn học
@@ -201,9 +207,7 @@ class _SubjectScreenState extends State<SubjectScreen> {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Xóa môn học'),
-        content: Text(
-          'Bạn có chắc muốn xóa ${monHoc.tenMonHoc}?',
-        ),
+        content: Text('Bạn có chắc muốn xóa ${monHoc.tenMonHoc}?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
@@ -229,14 +233,30 @@ class _SubjectScreenState extends State<SubjectScreen> {
     }
   }
 
+  Future<void> _doiLuuTru(MonHoc monHoc, bool daLuuTru) async {
+    _dangCapNhatLuuTru.add(monHoc.maMonHoc);
+    setState(() {});
+    try {
+      await _controller.capNhatLuuTru(monHoc.maMonHoc, daLuuTru);
+      if (!mounted) return;
+      _dangCapNhatLuuTru.remove(monHoc.maMonHoc);
+      setState(() {});
+      _thongBao(daLuuTru ? 'Đã lưu trữ môn học' : 'Đã khôi phục môn học');
+    } catch (e) {
+      if (!mounted) return;
+      _dangCapNhatLuuTru.remove(monHoc.maMonHoc);
+      setState(() {});
+      _thongBao('Lỗi cập nhật lưu trữ môn học: $e');
+      await _layDanhSach();
+    }
+  }
+
   // Mở thống kê
   void _moThongKe() {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => StatisticsScreen(
-          danhSachMonHoc: _danhSachMonHoc,
-        ),
+        builder: (context) => StatisticsScreen(danhSachMonHoc: _danhSachMonHoc),
       ),
     );
   }
@@ -247,287 +267,10 @@ class _SubjectScreenState extends State<SubjectScreen> {
       labelText: nhan,
       filled: true,
       fillColor: _background,
-      contentPadding: const EdgeInsets.symmetric(
-        horizontal: 12,
-        vertical: 12,
-      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
         borderSide: BorderSide.none,
-      ),
-    );
-  }
-
-  // Card môn học
-  Widget _theMonHoc(MonHoc monHoc) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: const Color(0xFFEDEDF5),
-        ),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 45,
-            height: 48,
-            decoration: BoxDecoration(
-              color: const Color(0xFFF0EEFF),
-              borderRadius: BorderRadius.circular(9),
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(
-                  Icons.menu_book_outlined,
-                  size: 18,
-                  color: _primary,
-                ),
-                Text(
-                  monHoc.maMonHoc,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 9,
-                    color: _primary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(width: 10),
-
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  monHoc.tenMonHoc,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-
-                const SizedBox(height: 4),
-
-                Text(
-                  'GV: ${monHoc.giangVien}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 11,
-                    color: Colors.grey,
-                  ),
-                ),
-
-                const SizedBox(height: 5),
-
-                Text(
-                  '${monHoc.soTinChi} tín chỉ',
-                  style: const TextStyle(
-                    fontSize: 11,
-                    color: Colors.grey,
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          Column(
-            children: [
-              IconButton(
-                tooltip: 'Sửa môn học',
-                onPressed: _dangLuu
-                    ? null
-                    : () => _suaMonHoc(monHoc),
-                icon: const Icon(
-                  Icons.edit_outlined,
-                  color: _primary,
-                  size: 20,
-                ),
-              ),
-
-              IconButton(
-                tooltip: 'Xóa môn học',
-                onPressed: _dangLuu
-                    ? null
-                    : () => _xoaMonHoc(monHoc),
-                icon: const Icon(
-                  Icons.delete_outline,
-                  color: Colors.redAccent,
-                  size: 20,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  // Form thêm môn học
-  Widget _formThemMon() {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: const Color(0xFFEDEDF5),
-        ),
-      ),
-      child: Form(
-        key: _formKey,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                const Expanded(
-                  child: Text(
-                    'Thêm môn học',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-                IconButton(
-                  onPressed: () {
-                    setState(() => _moForm = !_moForm);
-                  },
-                  icon: Icon(
-                    _moForm ? Icons.close : Icons.add,
-                  ),
-                ),
-              ],
-            ),
-
-            if (_moForm) ...[
-              const Text(
-                'Nhập thông tin môn học mới',
-                style: TextStyle(
-                  fontSize: 11,
-                  color: Colors.grey,
-                ),
-              ),
-
-              const SizedBox(height: 12),
-
-              Row(
-                children: [
-                  Expanded(
-                    child: TextFormField(
-                      controller: _maMonHocController,
-                      decoration: _oNhap('Mã môn'),
-                      validator: (value) {
-                        if (value == null ||
-                            value.trim().isEmpty) {
-                          return 'Nhập mã môn';
-                        }
-                        return null;
-                      },
-                    ),
-                  ),
-
-                  const SizedBox(width: 8),
-
-                  Expanded(
-                    child: TextFormField(
-                      controller: _soTinChiController,
-                      keyboardType: TextInputType.number,
-                      decoration: _oNhap('Số tín chỉ'),
-                      validator: (value) {
-                        final n = int.tryParse(
-                          value?.trim() ?? '',
-                        );
-
-                        if (n == null || n <= 0) {
-                          return 'Tín chỉ không hợp lệ';
-                        }
-                        return null;
-                      },
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 10),
-
-              TextFormField(
-                controller: _tenMonHocController,
-                decoration: _oNhap('Tên môn học'),
-                validator: (value) {
-                  if (value == null ||
-                      value.trim().isEmpty) {
-                    return 'Nhập tên môn học';
-                  }
-                  return null;
-                },
-              ),
-
-              const SizedBox(height: 10),
-
-              TextFormField(
-                controller: _giangVienController,
-                decoration: _oNhap('Giảng viên'),
-              ),
-
-              const SizedBox(height: 12),
-
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: _dangLuu
-                          ? null
-                          : () {
-                              _formKey.currentState?.reset();
-                              _maMonHocController.clear();
-                              _tenMonHocController.clear();
-                              _giangVienController.clear();
-                              _soTinChiController.clear();
-                            },
-                      child: const Text('Hủy'),
-                    ),
-                  ),
-
-                  const SizedBox(width: 8),
-
-                  Expanded(
-                    flex: 2,
-                    child: ElevatedButton.icon(
-                      onPressed: (_dangLuu || _dangTai)
-                          ? null
-                          : _themMonHoc,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: _primary,
-                        foregroundColor: Colors.white,
-                      ),
-                      icon: const Icon(
-                        Icons.save_outlined,
-                        size: 18,
-                      ),
-                      label: Text(
-                        _dangLuu
-                            ? 'Đang lưu...'
-                            : 'Lưu môn học',
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ],
-        ),
       ),
     );
   }
@@ -553,14 +296,31 @@ class _SubjectScreenState extends State<SubjectScreen> {
         backgroundColor: _background,
         title: const Text(
           'Quản lý môn học',
-          style: TextStyle(fontSize: 18),
+          style: TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.w700,
+            color: Color(0xFF202235),
+          ),
         ),
         actions: [
-          TextButton(
-            onPressed: _dangTai ? null : _moThongKe,
-            child: const Text(
-              'Thống kê →',
-              style: TextStyle(color: _primary),
+          Padding(
+            padding: const EdgeInsets.only(right: 16),
+            child: TextButton.icon(
+              onPressed: _dangTai ? null : _moThongKe,
+              style: TextButton.styleFrom(
+                backgroundColor: const Color(0xFFEDEBFF),
+                foregroundColor: _primary,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 9,
+                ),
+                shape: const StadiumBorder(),
+              ),
+              icon: const Icon(Icons.bar_chart_rounded, size: 19),
+              label: const Text(
+                'Thống kê',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
             ),
           ),
         ],
@@ -569,72 +329,132 @@ class _SubjectScreenState extends State<SubjectScreen> {
       body: RefreshIndicator(
         onRefresh: _layDanhSach,
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(
-            16, 8, 16, 24,
-          ),
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
           children: [
-            // Thanh tìm kiếm
             TextField(
               controller: _timKiemController,
               onChanged: (value) {
                 setState(() {});
               },
               decoration: InputDecoration(
-                hintText:
-                    'Tìm theo mã, tên hoặc giảng viên',
-                hintStyle: const TextStyle(fontSize: 12),
-                prefixIcon: const Icon(Icons.search),
-
-                suffixIcon:
-                    _timKiemController.text.isEmpty
-                        ? const Icon(Icons.tune)
-                        : IconButton(
-                            onPressed: () {
-                              _timKiemController.clear();
-                              setState(() {});
-                            },
-                            icon: const Icon(Icons.close),
-                          ),
-
+                hintText: 'Tìm theo mã, tên hoặc giảng viên',
+                hintStyle: const TextStyle(
+                  fontSize: 13,
+                  color: Color(0xFF8388A1),
+                ),
+                prefixIcon: const Icon(Icons.search, color: Color(0xFF8890A6)),
+                suffixIcon: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (_timKiemController.text.isNotEmpty)
+                      IconButton(
+                        tooltip: 'Xóa tìm kiếm',
+                        onPressed: () {
+                          _timKiemController.clear();
+                          setState(() {});
+                        },
+                        icon: const Icon(Icons.close, color: Color(0xFF8890A6)),
+                      ),
+                    IconButton(
+                      tooltip: 'Tìm kiếm và lọc môn học',
+                      onPressed: _moBoLoc,
+                      icon: const Icon(Icons.tune, color: Color(0xFF8890A6)),
+                    ),
+                  ],
+                ),
                 filled: true,
                 fillColor: Colors.white,
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(
-                    color: Color(0xFFEDEDF5),
-                  ),
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide.none,
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide.none,
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide.none,
+                ),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 16,
                 ),
               ),
             ),
 
             const SizedBox(height: 16),
 
-            // Tiêu đề học kỳ
+            Container(
+              decoration: BoxDecoration(
+                color: const Color(0xFFEAEAF5),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              padding: const EdgeInsets.all(4),
+              child: Row(
+                children: [
+                  SubjectTabButton(
+                    label: 'Đang học',
+                    selected: !_hienThiLuuTru && !_locTatCaTrangThai,
+                    onTap: () => setState(() {
+                      _hienThiLuuTru = false;
+                      _locTatCaTrangThai = false;
+                    }),
+                  ),
+                  const SizedBox(width: 4),
+                  SubjectTabButton(
+                    label: 'Đã lưu trữ',
+                    selected: _hienThiLuuTru && !_locTatCaTrangThai,
+                    onTap: () => setState(() {
+                      _hienThiLuuTru = true;
+                      _locTatCaTrangThai = false;
+                    }),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
             Row(
               children: [
-                const Expanded(
+                Expanded(
                   child: Text(
-                    'Học kỳ 1 • 2026',
+                    _locTatCaTrangThai
+                        ? 'Tất cả môn học'
+                        : _hienThiLuuTru
+                        ? 'Môn học đã lưu trữ'
+                        : 'Môn học đang theo dõi',
                     style: TextStyle(
                       fontSize: 15,
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF1F2130),
                     ),
                   ),
                 ),
-
-                Text(
-                  '${_ketQuaTimKiem.length} môn',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: _primary,
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEDE8FF),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    '${_ketQuaTimKiem.length} môn',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: _primary,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
               ],
             ),
 
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
 
-            // Danh sách môn học
             if (_dangTai)
               const Center(
                 child: Padding(
@@ -643,19 +463,60 @@ class _SubjectScreenState extends State<SubjectScreen> {
                 ),
               )
             else if (_ketQuaTimKiem.isEmpty)
-              const Padding(
+              Padding(
                 padding: EdgeInsets.all(24),
                 child: Text(
-                  'Không có môn học phù hợp.',
+                  _hienThiLuuTru
+                      ? 'Chưa có môn học nào được lưu trữ.'
+                      : 'Không có môn học phù hợp.',
                   textAlign: TextAlign.center,
                 ),
               )
             else
-              ..._ketQuaTimKiem.map(_theMonHoc),
+              ..._ketQuaTimKiem.map(
+                (monHoc) => SubjectCard(
+                  monHoc: monHoc,
+                  isSaving: _dangLuu,
+                  isLoadingDeadlines: _dangTaiDeadline,
+                  deadlineCount: _soDeadlineTheoMon[monHoc.maMonHoc] ?? 0,
+                  onEdit: (monHoc) async {
+                    await _suaMonHoc(monHoc);
+                  },
+                  onDelete: _xoaMonHoc,
+                  onArchive: _doiLuuTru,
+                ),
+              ),
 
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
 
-            // Form thêm môn học
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF1F2F7),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.archive_outlined,
+                    color: Color(0xFF5F6274),
+                    size: 18,
+                  ),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      _hienThiLuuTru
+                          ? 'Vuốt sang phải để khôi phục môn học'
+                          : 'Vuốt sang trái môn học để lưu trữ',
+                      style: TextStyle(fontSize: 13, color: Color(0xFF5F6274)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
             _formThemMon(),
           ],
         ),

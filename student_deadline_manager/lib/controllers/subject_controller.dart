@@ -96,6 +96,35 @@ class SubjectController extends ChangeNotifier {
     }
   }
 
+  Future<void> capNhatLuuTru(String maMonHoc, bool daLuuTru) async {
+    if (isSaving || isLoading) {
+      throw StateError('Đang xử lý dữ liệu');
+    }
+
+    final monHoc = _khoMonHoc.findById(maMonHoc);
+    if (monHoc == null || monHoc.daLuuTru == daLuuTru) return;
+
+    isSaving = true;
+    notifyListeners();
+
+    try {
+      await _service.capNhatLuuTru(maMonHoc, daLuuTru);
+      _khoMonHoc.removeById(maMonHoc);
+      _khoMonHoc.add(
+        MonHoc(
+          maMonHoc: monHoc.maMonHoc,
+          tenMonHoc: monHoc.tenMonHoc,
+          giangVien: monHoc.giangVien,
+          soTinChi: monHoc.soTinChi,
+          daLuuTru: daLuuTru,
+        ),
+      );
+    } finally {
+      isSaving = false;
+      notifyListeners();
+    }
+  }
+
   // Xóa môn học
   Future<void> xoaMonHoc(String maMonHoc) async {
     if (isSaving || isLoading) {
