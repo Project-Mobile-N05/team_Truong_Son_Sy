@@ -35,7 +35,7 @@ class TaskRepository {
         final ref = await _col.add(task.toMap());
         return ref.id;
       }, 'Thêm');
-
+      
   /// Ghi đè Document theo id.
   Future<void> update(String id, Task task) =>
       _guard(() => _col.doc(id).set(task.toMap()), 'Cập nhật');
