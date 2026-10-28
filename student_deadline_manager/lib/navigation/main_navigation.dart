@@ -3,6 +3,7 @@ import '../screens/account_screen.dart';
 import '../screens/home_screen.dart';
 import '../screens/reminder_screen.dart';
 import '../screens/subject_screen.dart';
+import '../screens/calendar_screen.dart';
 
 /// Một tab của thanh điều hướng dưới.
 class AppTab {
@@ -49,9 +50,14 @@ class _MainNavigationState extends State<MainNavigation> {
       icon: Icons.menu_book_outlined,
       selectedIcon: Icons.menu_book,
       screen: SubjectScreen(),
-),
-
-    // Sỹ:  AppTab(key: 'calendar', ...), AppTab(key: 'task', ...)
+    ),
+        AppTab(
+      key: 'calendar',
+      label: 'Lịch',
+      icon: Icons.calendar_month_outlined,
+      selectedIcon: Icons.calendar_month,
+      screen: const CalendarScreen(),
+    ),
     const AppTab(
       key: 'reminder',
       label: 'Nhắc nhở',
