@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
-import '../controllers/reminder_manager.dart';
+import '../models/task.dart';
 import '../services/auth_service.dart';
+import '../services/task_service.dart';
 import '../widgets/home_tile.dart';
 import '../widgets/screen_header.dart';
 
 const Color _ink = Color(0xFF1F1B2D);
 const Color _muted = Color(0xFF5F5A70);
 
+/// Một ô danh mục / một dịch vụ nhanh. `key` trùng với AppTab.key
+/// trong main_navigation.dart. Muốn thêm ô: thêm 1 dòng vào danh sách dưới.
 class _Category {
   final String key;
   final String title;
@@ -42,6 +45,7 @@ const _services = [
 ];
 
 /// Trang chủ. [onOpen] nhận khóa chức năng cần mở.
+/// Dữ liệu deadline lấy từ TaskService (module của Sỹ).
 class HomeScreen extends StatefulWidget {
   final void Function(String key) onOpen;
   const HomeScreen({super.key, required this.onOpen});
@@ -51,24 +55,37 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  // TODO(Sỹ): thay bằng số deadline thật trong tuần khi có module Task.
-  final int _upcomingCount = 0;
-
-  final ReminderManager _reminder = ReminderManager();
+  List<Task> _tasks = [];
+  String? _error;
   String _studentCode = '';
+
+  /// Deadline chưa xong trong 7 ngày tới, và deadline của hôm nay.
+  List<Task> get _upcoming => TaskService.upcoming(_tasks);
+  List<Task> get _today => TaskService.tasksOfDay(_tasks, DateTime.now());
 
   @override
   void initState() {
     super.initState();
-    _loadStudentCode();
+    _load();
   }
 
-  Future<void> _loadStudentCode() async {
+  /// Tải mã sinh viên và danh sách deadline (cũng dùng cho kéo để làm mới).
+  Future<void> _load() async {
+    final uid = AuthService().currentUid;
+    if (uid == null) return;
     try {
       final p = await AuthService().getProfile();
-      if (mounted) setState(() => _studentCode = p.studentCode);
+      _studentCode = p.studentCode;
     } catch (_) {
       // Không có hồ sơ thì hiện mặc định, không cần báo lỗi ở Trang chủ.
+    }
+    try {
+      final tasks = await TaskService().findAll(uid);
+      if (mounted) setState(() { _tasks = tasks; _error = null; });
+    } on TaskException catch (e) {
+      if (mounted) setState(() => _error = e.message);
+    } catch (e) {
+      if (mounted) setState(() => _error = 'Có lỗi xảy ra: $e');
     }
   }
 
@@ -77,30 +94,32 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(17, 16, 17, 16),
-          children: [
-            _header(),
-            const SizedBox(height: 20),
-            _tileRow(_topTiles, fontSize: 22, gap: 10),
-            const SizedBox(height: 10),
-            _tileRow(_bottomTiles, fontSize: 20, gap: 9),
-            const SizedBox(height: 18),
-            _servicesCard(),
-            _divider(),
-            _weekBanner(),
-            _divider(),
-            _heading('Deadline sắp tới'),
-            const SizedBox(height: 12),
-            _upcomingCard(),
-            const SizedBox(height: 20),
-            _heading('Việc hôm nay'),
-            const SizedBox(height: 12),
-            const SoftCard(
-              child: Text('Hôm nay chưa có việc nào cần làm',
-                  style: TextStyle(fontSize: 14, color: _muted)),
-            ),
-          ],
+        child: RefreshIndicator(
+          onRefresh: _load,
+          child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(17, 16, 17, 16),
+            children: [
+              _header(),
+              const SizedBox(height: 20),
+              _tileRow(_topTiles, fontSize: 22, gap: 10),
+              const SizedBox(height: 10),
+              _tileRow(_bottomTiles, fontSize: 20, gap: 9),
+              const SizedBox(height: 18),
+              _servicesCard(),
+              _divider(),
+              _weekBanner(),
+              _divider(),
+              _heading('Deadline sắp tới'),
+              const SizedBox(height: 12),
+              ..._taskCards(_upcoming.take(3).toList(),
+                  empty: 'Chưa có deadline nào sắp đến'),
+              const SizedBox(height: 20),
+              _heading('Việc hôm nay'),
+              const SizedBox(height: 12),
+              ..._taskCards(_today, empty: 'Hôm nay chưa có việc nào cần làm'),
+            ],
+          ),
         ),
       ),
     );
@@ -140,7 +159,7 @@ class _HomeScreenState extends State<HomeScreen> {
             border: Border.all(color: const Color(0xFF3DAA5C)),
             borderRadius: BorderRadius.circular(4),
           ),
-          child: Text('$_upcomingCount việc',
+          child: Text('${_upcoming.length} việc',
               style: const TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w800,
@@ -181,13 +200,16 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _weekBanner() {
-    final text = _upcomingCount == 0
-        ? 'Chưa có deadline nào trong tuần này'
-        : 'Bạn có $_upcomingCount deadline trong tuần này';
+    final n = _upcoming.length;
+    final text = _error ??
+        (n == 0
+            ? 'Chưa có deadline nào trong tuần này'
+            : 'Bạn có $n deadline trong tuần này');
     return SoftCard(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
       child: Row(children: [
-        const Icon(Icons.event_note, color: _ink),
+        Icon(_error == null ? Icons.event_note : Icons.error_outline,
+            color: _error == null ? _ink : Colors.red),
         const SizedBox(width: 12),
         Expanded(
           child: Text(text,
@@ -203,9 +225,29 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _upcomingCard() {
+  /// Danh sách thẻ deadline, hoặc một thẻ báo trống nếu không có.
+  List<Widget> _taskCards(List<Task> tasks, {required String empty}) {
+    if (tasks.isEmpty) {
+      return [
+        SoftCard(
+          child: Text(empty,
+              style: const TextStyle(fontSize: 14, color: _muted)),
+        ),
+      ];
+    }
+    return [
+      for (final t in tasks)
+        Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: _taskCard(t),
+        ),
+    ];
+  }
+
+  Widget _taskCard(Task t) {
+    final status = t.displayStatus();
     return GestureDetector(
-      onTap: () => widget.onOpen('reminder'),
+      onTap: () => widget.onOpen('calendar'),
       child: SoftCard(
         padding: const EdgeInsets.all(12),
         child: Row(children: [
@@ -223,12 +265,16 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(_reminder.title,
+                Text(t.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                         fontSize: 16, fontWeight: FontWeight.w800, color: _ink)),
                 const SizedBox(height: 4),
-                Text('Hạn ${_reminder.dueDate} · ${_reminder.status}',
-                    style: const TextStyle(fontSize: 14, color: _muted)),
+                Text('Hạn ${_formatTime(t.taskDatetime)} · ${status.label}',
+                    style: TextStyle(
+                        fontSize: 14,
+                        color: t.isOverdue() ? Colors.red : _muted)),
               ],
             ),
           ),
@@ -285,4 +331,10 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _heading(String t) => Text(t,
       style: const TextStyle(
           fontSize: 21, fontWeight: FontWeight.w800, color: _ink));
+
+  /// dd/MM HH:mm
+  String _formatTime(DateTime d) {
+    String two(int n) => n.toString().padLeft(2, '0');
+    return '${two(d.day)}/${two(d.month)} ${two(d.hour)}:${two(d.minute)}';
+  }
 }

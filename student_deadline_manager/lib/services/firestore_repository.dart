@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/base_entity.dart';
 
+/// Lỗi chung của tầng dữ liệu (Câu 8a: bắt lỗi).
 class RepositoryException implements Exception {
   final String message;
   const RepositoryException(this.message);
@@ -49,6 +50,12 @@ class FirestoreRepository<T extends BaseEntity> {
 
   Future<List<T>> getAll() => _guard(() async {
         final snap = await _col.get();
+        return snap.docs.map((d) => _fromMap(d.id, d.data())).toList();
+      }, 'Đọc danh sách');
+
+  /// Các Document có [field] == [value] (vd: userId của người đăng nhập).
+  Future<List<T>> findWhere(String field, Object value) => _guard(() async {
+        final snap = await _col.where(field, isEqualTo: value).get();
         return snap.docs.map((d) => _fromMap(d.id, d.data())).toList();
       }, 'Đọc danh sách');
 
