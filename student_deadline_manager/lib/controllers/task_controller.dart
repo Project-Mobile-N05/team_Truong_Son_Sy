@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import '../models/task.dart';
 import '../models/task_status.dart';
 import '../services/auth_service.dart';
+import '../services/reminder_service.dart';
 import '../services/task_service.dart';
 
 /// Một môn học để hiển thị tên và chọn trong form.
@@ -27,7 +28,13 @@ class TaskController extends ChangeNotifier {
     TaskService? service,
     String? Function()? currentUid,
     SubjectLoader? subjectLoader,
-  })  : _service = service ?? TaskService(),
+  })  : _service = service ??
+            TaskService(
+              // Nối module Nhắc nhở (Trường): thêm/sửa/xóa deadline sẽ
+              // tự tạo/hủy nhắc nhở.
+              scheduleReminder: ReminderService().schedule,
+              cancelReminders: ReminderService().cancelForTask,
+            ),
         _currentUid = currentUid ?? _authUid,
         _subjectLoader = subjectLoader;
 
