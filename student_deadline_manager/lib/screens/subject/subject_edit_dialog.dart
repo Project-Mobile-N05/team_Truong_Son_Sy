@@ -168,7 +168,6 @@ extension _SubjectEditDialog on _SubjectScreenState {
                                 tenMonHoc: tenMon.trim(),
                                 giangVien: giangVien.trim(),
                                 soTinChi: int.parse(tinChi.trim()),
-                                daLuuTru: monHoc.daLuuTru,
                               ),
                             );
                           },

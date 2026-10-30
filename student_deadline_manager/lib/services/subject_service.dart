@@ -33,7 +33,6 @@ class SubjectService {
         tenMonHoc: data['tenMonHoc'] as String,
         giangVien: data['giangVien'] as String,
         soTinChi: (data['soTinChi'] as num).toInt(),
-        daLuuTru: data['daLuuTru'] as bool? ?? false,
       );
     }).toList();
   }
@@ -52,10 +51,6 @@ class SubjectService {
       'giangVien': monHoc.giangVien,
       'soTinChi': monHoc.soTinChi,
     });
-  }
-
-  Future<void> capNhatLuuTru(String maMonHoc, bool daLuuTru) async {
-    await collection.doc(maMonHoc).update({'daLuuTru': daLuuTru});
   }
 
   // Xóa môn học

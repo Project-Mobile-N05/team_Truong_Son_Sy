@@ -8,7 +8,6 @@ import '../services/task_service.dart';
 import '../controllers/subject_controller.dart';
 import 'statistics_screen.dart';
 import 'subject/widgets/subject_card.dart';
-import 'subject/widgets/subject_tab_button.dart';
 
 part 'subject/subject_search_screen.dart';
 part 'subject/subject_edit_dialog.dart';
@@ -19,13 +18,11 @@ const _background = Color(0xFFF7F8FC);
 
 class _SubjectSearchFilters {
   final String query;
-  final bool? archived;
   final int? credits;
   final String? teacher;
 
   const _SubjectSearchFilters({
     required this.query,
-    required this.archived,
     required this.credits,
     required this.teacher,
   });
@@ -53,25 +50,18 @@ class _SubjectScreenState extends State<SubjectScreen> {
   bool get _dangTai => _controller.isLoading;
   bool get _dangLuu => _controller.isSaving;
   bool _moForm = true;
-  bool _hienThiLuuTru = false;
-  bool _locTatCaTrangThai = false;
   bool _dangTaiDeadline = true;
   int? _locTinChi;
   String? _locGiangVien;
-  final Set<String> _dangCapNhatLuuTru = {};
   Map<String, int> _soDeadlineTheoMon = {};
 
   List<MonHoc> get _danhSachMonHoc => _controller.danhSachMonHoc;
 
   List<MonHoc> get _ketQuaTimKiem => _controller
       .timKiem(_timKiemController.text)
-      .where(
-        (monHoc) =>
-            (_locTatCaTrangThai || monHoc.daLuuTru == _hienThiLuuTru) &&
-            (_locTinChi == null || monHoc.soTinChi == _locTinChi) &&
-            (_locGiangVien == null || monHoc.giangVien == _locGiangVien) &&
-            !_dangCapNhatLuuTru.contains(monHoc.maMonHoc),
-      )
+      .where((monHoc) =>
+          (_locTinChi == null || monHoc.soTinChi == _locTinChi) &&
+          (_locGiangVien == null || monHoc.giangVien == _locGiangVien))
       .toList();
 
   @override
@@ -176,11 +166,8 @@ class _SubjectScreenState extends State<SubjectScreen> {
       context,
       MaterialPageRoute(
         builder: (_) => _SubjectSearchScreen(
-          danhSachMonHoc: _danhSachMonHoc
-              .where((monHoc) => !_dangCapNhatLuuTru.contains(monHoc.maMonHoc))
-              .toList(),
+          danhSachMonHoc: _danhSachMonHoc,
           tuKhoaBanDau: _timKiemController.text,
-          trangThaiBanDau: _locTatCaTrangThai ? null : _hienThiLuuTru,
           tinChiBanDau: _locTinChi,
           giangVienBanDau: _locGiangVien,
           onEdit: _suaMonHoc,
@@ -190,10 +177,6 @@ class _SubjectScreenState extends State<SubjectScreen> {
     if (filters == null || !mounted) return;
     setState(() {
       _timKiemController.text = filters.query;
-      _locTatCaTrangThai = filters.archived == null;
-      if (filters.archived != null) {
-        _hienThiLuuTru = filters.archived!;
-      }
       _locTinChi = filters.credits;
       _locGiangVien = filters.teacher;
     });
@@ -230,24 +213,6 @@ class _SubjectScreenState extends State<SubjectScreen> {
     } catch (e) {
       if (!mounted) return;
       _thongBao('Lỗi xóa môn học: $e');
-    }
-  }
-
-  Future<void> _doiLuuTru(MonHoc monHoc, bool daLuuTru) async {
-    _dangCapNhatLuuTru.add(monHoc.maMonHoc);
-    setState(() {});
-    try {
-      await _controller.capNhatLuuTru(monHoc.maMonHoc, daLuuTru);
-      if (!mounted) return;
-      _dangCapNhatLuuTru.remove(monHoc.maMonHoc);
-      setState(() {});
-      _thongBao(daLuuTru ? 'Đã lưu trữ môn học' : 'Đã khôi phục môn học');
-    } catch (e) {
-      if (!mounted) return;
-      _dangCapNhatLuuTru.remove(monHoc.maMonHoc);
-      setState(() {});
-      _thongBao('Lỗi cập nhật lưu trữ môn học: $e');
-      await _layDanhSach();
     }
   }
 
@@ -385,46 +350,11 @@ class _SubjectScreenState extends State<SubjectScreen> {
 
             const SizedBox(height: 16),
 
-            Container(
-              decoration: BoxDecoration(
-                color: const Color(0xFFEAEAF5),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              padding: const EdgeInsets.all(4),
-              child: Row(
-                children: [
-                  SubjectTabButton(
-                    label: 'Đang học',
-                    selected: !_hienThiLuuTru && !_locTatCaTrangThai,
-                    onTap: () => setState(() {
-                      _hienThiLuuTru = false;
-                      _locTatCaTrangThai = false;
-                    }),
-                  ),
-                  const SizedBox(width: 4),
-                  SubjectTabButton(
-                    label: 'Đã lưu trữ',
-                    selected: _hienThiLuuTru && !_locTatCaTrangThai,
-                    onTap: () => setState(() {
-                      _hienThiLuuTru = true;
-                      _locTatCaTrangThai = false;
-                    }),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 16),
-
             Row(
               children: [
                 Expanded(
                   child: Text(
-                    _locTatCaTrangThai
-                        ? 'Tất cả môn học'
-                        : _hienThiLuuTru
-                        ? 'Môn học đã lưu trữ'
-                        : 'Môn học đang theo dõi',
+                    'Danh sách môn học',
                     style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
@@ -466,9 +396,7 @@ class _SubjectScreenState extends State<SubjectScreen> {
               Padding(
                 padding: EdgeInsets.all(24),
                 child: Text(
-                  _hienThiLuuTru
-                      ? 'Chưa có môn học nào được lưu trữ.'
-                      : 'Không có môn học phù hợp.',
+                  'Không có môn học phù hợp.',
                   textAlign: TextAlign.center,
                 ),
               )
@@ -483,39 +411,10 @@ class _SubjectScreenState extends State<SubjectScreen> {
                     await _suaMonHoc(monHoc);
                   },
                   onDelete: _xoaMonHoc,
-                  onArchive: _doiLuuTru,
                 ),
               ),
 
             const SizedBox(height: 12),
-
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF1F2F7),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.archive_outlined,
-                    color: Color(0xFF5F6274),
-                    size: 18,
-                  ),
-                  SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      _hienThiLuuTru
-                          ? 'Vuốt sang phải để khôi phục môn học'
-                          : 'Vuốt sang trái môn học để lưu trữ',
-                      style: TextStyle(fontSize: 13, color: Color(0xFF5F6274)),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 16),
 
             _formThemMon(),
           ],

@@ -11,7 +11,6 @@ class SubjectCard extends StatelessWidget {
   final int deadlineCount;
   final Future<void> Function(MonHoc) onEdit;
   final Future<void> Function(MonHoc) onDelete;
-  final void Function(MonHoc, bool) onArchive;
 
   const SubjectCard({
     super.key,
@@ -21,38 +20,19 @@ class SubjectCard extends StatelessWidget {
     required this.deadlineCount,
     required this.onEdit,
     required this.onDelete,
-    required this.onArchive,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Dismissible(
-      key: ValueKey('${monHoc.maMonHoc}-${monHoc.daLuuTru}'),
-      direction: monHoc.daLuuTru
-          ? DismissDirection.startToEnd
-          : DismissDirection.endToStart,
-      background: _ArchiveBackground(
-        icon: monHoc.daLuuTru
-            ? Icons.unarchive_outlined
-            : Icons.archive_outlined,
-        label: monHoc.daLuuTru ? 'Khôi phục' : 'Lưu trữ',
-        alignment: Alignment.centerLeft,
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFEDEDF5)),
       ),
-      secondaryBackground: const _ArchiveBackground(
-        icon: Icons.archive_outlined,
-        label: 'Lưu trữ',
-        alignment: Alignment.centerRight,
-      ),
-      onDismissed: (_) => onArchive(monHoc, !monHoc.daLuuTru),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFEDEDF5)),
-        ),
-        child: Row(
+      child: Row(
           children: [
             Container(
               width: 46,
@@ -200,7 +180,6 @@ class SubjectCard extends StatelessWidget {
               ],
             ),
           ],
-        ),
       ),
     );
   }
@@ -223,52 +202,6 @@ class SubjectCard extends StatelessWidget {
         onPressed: onPressed,
         padding: EdgeInsets.zero,
         icon: icon,
-      ),
-    );
-  }
-}
-
-class _ArchiveBackground extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final Alignment alignment;
-
-  const _ArchiveBackground({
-    required this.icon,
-    required this.label,
-    required this.alignment,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final isRight = alignment == Alignment.centerRight;
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      decoration: BoxDecoration(
-        color: const Color(0xFFEDE8FF),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      alignment: alignment,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (!isRight) ...[
-            Icon(icon, color: _primary),
-            const SizedBox(width: 8),
-          ],
-          Text(
-            label,
-            style: const TextStyle(
-              color: _primary,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          if (isRight) ...[
-            const SizedBox(width: 8),
-            Icon(icon, color: _primary),
-          ],
-        ],
       ),
     );
   }

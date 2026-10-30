@@ -1,4 +1,3 @@
-
 import 'package:flutter/foundation.dart';
 
 import '../models/project_entity.dart';
@@ -8,8 +7,7 @@ import '../services/subject_service.dart';
 class SubjectController extends ChangeNotifier {
   final SubjectService _service;
 
-  final ProjectCollection<MonHoc> _khoMonHoc =
-      ProjectCollection<MonHoc>();
+  final ProjectCollection<MonHoc> _khoMonHoc = ProjectCollection<MonHoc>();
 
   SubjectController(this._service);
 
@@ -90,35 +88,6 @@ class SubjectController extends ChangeNotifier {
 
       _khoMonHoc.removeById(monHoc.maMonHoc);
       _khoMonHoc.add(monHoc);
-    } finally {
-      isSaving = false;
-      notifyListeners();
-    }
-  }
-
-  Future<void> capNhatLuuTru(String maMonHoc, bool daLuuTru) async {
-    if (isSaving || isLoading) {
-      throw StateError('Đang xử lý dữ liệu');
-    }
-
-    final monHoc = _khoMonHoc.findById(maMonHoc);
-    if (monHoc == null || monHoc.daLuuTru == daLuuTru) return;
-
-    isSaving = true;
-    notifyListeners();
-
-    try {
-      await _service.capNhatLuuTru(maMonHoc, daLuuTru);
-      _khoMonHoc.removeById(maMonHoc);
-      _khoMonHoc.add(
-        MonHoc(
-          maMonHoc: monHoc.maMonHoc,
-          tenMonHoc: monHoc.tenMonHoc,
-          giangVien: monHoc.giangVien,
-          soTinChi: monHoc.soTinChi,
-          daLuuTru: daLuuTru,
-        ),
-      );
     } finally {
       isSaving = false;
       notifyListeners();
