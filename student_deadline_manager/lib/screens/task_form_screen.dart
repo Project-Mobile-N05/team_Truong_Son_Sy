@@ -5,6 +5,9 @@ import '../models/task_status.dart';
 import '../models/task_type.dart';
 import '../services/task_service.dart';
 import '../widgets/task_card.dart';
+import '../controllers/subject_controller.dart';
+import '../models/subject.dart';
+import 'package:provider/provider.dart';
 
 /// Màn hình thêm / sửa / xóa deadline.
 /// [task] = null là thêm mới, có giá trị là sửa (có thêm ô Trạng thái và nút Xóa).
@@ -50,6 +53,9 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<SubjectController>().layDanhSach();
+    });
     final t = widget.task;
     _title = TextEditingController(text: t?.title ?? '');
     _room = TextEditingController(text: t?.room ?? '');
