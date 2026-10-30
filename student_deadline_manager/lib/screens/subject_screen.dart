@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../models/subject.dart';
@@ -59,16 +61,23 @@ class _SubjectScreenState extends State<SubjectScreen> {
 
   List<MonHoc> get _ketQuaTimKiem => _controller
       .timKiem(_timKiemController.text)
-      .where((monHoc) =>
-          (_locTinChi == null || monHoc.soTinChi == _locTinChi) &&
-          (_locGiangVien == null || monHoc.giangVien == _locGiangVien))
+      .where(
+        (monHoc) =>
+            (_locTinChi == null || monHoc.soTinChi == _locTinChi) &&
+            (_locGiangVien == null || monHoc.giangVien == _locGiangVien),
+      )
       .toList();
 
   @override
   void initState() {
     super.initState();
     _controller.addListener(_capNhatGiaoDien);
+    TaskService.taskChanges.addListener(_onTaskChanges);
     _layDanhSach();
+  }
+
+  void _onTaskChanges() {
+    if (mounted) unawaited(_laySoDeadline());
   }
 
   void _capNhatGiaoDien() {
@@ -243,6 +252,7 @@ class _SubjectScreenState extends State<SubjectScreen> {
   @override
   void dispose() {
     _controller.removeListener(_capNhatGiaoDien);
+    TaskService.taskChanges.removeListener(_onTaskChanges);
     _controller.dispose();
     _maMonHocController.dispose();
     _tenMonHocController.dispose();

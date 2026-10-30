@@ -26,6 +26,9 @@ class TaskService {
   final Future<void> Function(Task task)? _scheduleReminder;
   final Future<void> Function(String taskId)? _cancelReminders;
 
+  /// Báo thay đổi deadline để cập nhật các màn hình còn được giữ trong navigation.
+  static final ValueNotifier<int> taskChanges = ValueNotifier<int>(0);
+
   /// [repository]: truyền repository dùng FakeFirebaseFirestore khi unit test.
   /// [subjectExists], [scheduleReminder], [cancelReminders]: điểm nối với
   /// module Môn học (Sơn) và Nhắc nhở (Trường); null thì bỏ qua bước đó.
@@ -34,10 +37,10 @@ class TaskService {
     SubjectChecker? subjectExists,
     Future<void> Function(Task task)? scheduleReminder,
     Future<void> Function(String taskId)? cancelReminders,
-  })  : _repo = repository ?? TaskRepository(),
-        _subjectExists = subjectExists,
-        _scheduleReminder = scheduleReminder,
-        _cancelReminders = cancelReminders;
+  }) : _repo = repository ?? TaskRepository(),
+       _subjectExists = subjectExists,
+       _scheduleReminder = scheduleReminder,
+       _cancelReminders = cancelReminders;
 
   // ---------- Kiểm tra dữ liệu (dùng được cho form và unit test) ----------
 
@@ -87,6 +90,7 @@ class TaskService {
     final id = await _guard(() => _repo.add(task));
     final saved = task.copyWith(id: id);
     await _safeReminder(() => _scheduleReminder?.call(saved));
+    _notifyTaskChanges();
     return saved;
   }
 
@@ -112,7 +116,8 @@ class TaskService {
   /// Kiểm tra trùng tiêu đề, trừ chính nó. Cho phép sửa deadline đã quá hạn.
   Future<Task> update(String userId, String id, TaskDto dto) async {
     final old = await findOne(userId, id);
-    final err = validateTitle(dto.title) ??
+    final err =
+        validateTitle(dto.title) ??
         validateDateTime(dto.taskDatetime, allowPast: true);
     if (err != null) throw TaskException(err);
 
@@ -134,7 +139,8 @@ class TaskService {
     );
     await _guard(() => _repo.update(id, updated));
 
-    final changed = updated.taskDatetime != old.taskDatetime ||
+    final changed =
+        updated.taskDatetime != old.taskDatetime ||
         updated.status != old.status;
     if (changed) {
       await _safeReminder(() => _cancelReminders?.call(id));
@@ -142,6 +148,7 @@ class TaskService {
         await _safeReminder(() => _scheduleReminder?.call(updated));
       }
     }
+    _notifyTaskChanges();
     return updated;
   }
 
@@ -150,6 +157,7 @@ class TaskService {
     await findOne(userId, id);
     await _guard(() => _repo.delete(id));
     await _safeReminder(() => _cancelReminders?.call(id));
+    _notifyTaskChanges();
   }
 
   // ---------- Hỗ trợ màn hình Lịch ----------
@@ -176,22 +184,36 @@ class TaskService {
       ..sort((a, b) => a.taskDatetime.compareTo(b.taskDatetime));
   }
 
-  /// Deadline chưa hoàn thành sẽ đến hạn trong [days] ngày tới, sắp xếp theo hạn.
-  /// Dùng cho "Deadline sắp tới" và số việc trong tuần trên Trang chủ.
+  /// Deadline đến hạn trong tuần lịch hiện tại, từ thứ Hai đến Chủ nhật.
+  static List<Task> tasksThisWeek(Iterable<Task> tasks, {DateTime? now}) {
+    final today = dayKey(now ?? DateTime.now());
+    final monday = today.subtract(
+      Duration(days: today.weekday - DateTime.monday),
+    );
+    final sundayExclusive = monday.add(const Duration(days: 7));
+    return tasks.where((task) {
+      final dueDate = dayKey(task.taskDatetime);
+      return !dueDate.isBefore(monday) && dueDate.isBefore(sundayExclusive);
+    }).toList()..sort((a, b) => a.taskDatetime.compareTo(b.taskDatetime));
+  }
+
+  /// Deadline đến hạn trong [days] ngày lịch tới, kể cả hôm nay.
+  /// Bao gồm deadline hoàn thành để Trang chủ vẫn thể hiện trạng thái của chúng.
   static List<Task> upcoming(
     Iterable<Task> tasks, {
     DateTime? now,
     int days = 7,
   }) {
-    final n = now ?? DateTime.now();
-    final end = n.add(Duration(days: days));
-    return tasks
-        .where((t) =>
-            t.status != TaskStatus.completed &&
-            !t.taskDatetime.isBefore(n) &&
-            t.taskDatetime.isBefore(end))
-        .toList()
-      ..sort((a, b) => a.taskDatetime.compareTo(b.taskDatetime));
+    final today = dayKey(now ?? DateTime.now());
+    final end = today.add(Duration(days: days));
+    return tasks.where((task) {
+      final dueDate = dayKey(task.taskDatetime);
+      return !dueDate.isBefore(today) && dueDate.isBefore(end);
+    }).toList()..sort((a, b) => a.taskDatetime.compareTo(b.taskDatetime));
+  }
+
+  void _notifyTaskChanges() {
+    taskChanges.value++;
   }
 
   // ---------- Nội bộ ----------
