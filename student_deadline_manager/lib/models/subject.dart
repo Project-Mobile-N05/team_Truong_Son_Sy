@@ -23,7 +23,7 @@ class MonHoc extends ProjectEntity<String> {
         'giangVien': giangVien,
         'soTinChi': soTinChi,
       };
-      
+
   String getThongTinMonHoc() {
     return 'Môn $tenMonHoc ($maMonHoc) do giảng viên $giangVien giảng dạy, tổng $soTinChi tín chỉ.';
   }
