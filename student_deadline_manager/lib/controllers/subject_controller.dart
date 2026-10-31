@@ -23,9 +23,9 @@ class SubjectController extends ChangeNotifier {
     if (keyword.isEmpty) return danhSachMonHoc;
 
     return danhSachMonHoc.where((mon) {
-      return mon.maMonHoc.toLowerCase().contains(keyword) ||
-          mon.tenMonHoc.toLowerCase().contains(keyword) ||
-          mon.giangVien.toLowerCase().contains(keyword);
+      return mon.id.toLowerCase().contains(keyword) ||
+          mon.name.toLowerCase().contains(keyword) ||
+          mon.teacher.toLowerCase().contains(keyword);
     }).toList();
   }
 
@@ -40,7 +40,7 @@ class SubjectController extends ChangeNotifier {
       final danhSach = await _service.layDanhSach();
 
       for (final mon in List<MonHoc>.from(_khoMonHoc.items)) {
-        _khoMonHoc.removeById(mon.maMonHoc);
+        _khoMonHoc.removeById(mon.id);
       }
 
       for (final mon in danhSach) {
@@ -58,7 +58,7 @@ class SubjectController extends ChangeNotifier {
       throw StateError('Đang xử lý dữ liệu');
     }
 
-    if (_khoMonHoc.findById(monHoc.maMonHoc) != null) {
+    if (_khoMonHoc.findById(monHoc.id) != null) {
       throw StateError('Mã môn học đã tồn tại');
     }
 
@@ -86,7 +86,7 @@ class SubjectController extends ChangeNotifier {
     try {
       await _service.suaMonHoc(monHoc);
 
-      _khoMonHoc.removeById(monHoc.maMonHoc);
+      _khoMonHoc.removeById(monHoc.id);
       _khoMonHoc.add(monHoc);
     } finally {
       isSaving = false;
@@ -95,7 +95,7 @@ class SubjectController extends ChangeNotifier {
   }
 
   // Xóa môn học
-  Future<void> xoaMonHoc(String maMonHoc) async {
+  Future<void> xoaMonHoc(String id) async {
     if (isSaving || isLoading) {
       throw StateError('Đang xử lý dữ liệu');
     }
@@ -104,8 +104,8 @@ class SubjectController extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await _service.xoaMonHoc(maMonHoc);
-      _khoMonHoc.removeById(maMonHoc);
+      await _service.xoaMonHoc(id);
+      _khoMonHoc.removeById(id);
     } finally {
       isSaving = false;
       notifyListeners();

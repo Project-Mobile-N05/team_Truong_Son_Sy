@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../models/subject.dart';
+import '../models/subject_appearance.dart';
 import '../models/task_status.dart';
 import '../services/auth_service.dart';
 import '../services/subject_service.dart';
@@ -10,6 +11,7 @@ import '../services/task_service.dart';
 import '../controllers/subject_controller.dart';
 import 'statistics_screen.dart';
 import 'subject/widgets/subject_card.dart';
+import '../widgets/subject_appearance_picker.dart';
 
 part 'subject/subject_search_screen.dart';
 part 'subject/subject_edit_dialog.dart';
@@ -40,10 +42,10 @@ class SubjectScreen extends StatefulWidget {
 class _SubjectScreenState extends State<SubjectScreen> {
   final _formKey = GlobalKey<FormState>();
 
-  final _maMonHocController = TextEditingController();
-  final _tenMonHocController = TextEditingController();
-  final _giangVienController = TextEditingController();
-  final _soTinChiController = TextEditingController();
+  final _idController = TextEditingController();
+  final _nameController = TextEditingController();
+  final _teacherController = TextEditingController();
+  final _creditsController = TextEditingController();
   final _timKiemController = TextEditingController();
 
   final SubjectController _controller = SubjectController(SubjectService());
@@ -53,6 +55,8 @@ class _SubjectScreenState extends State<SubjectScreen> {
   bool get _dangLuu => _controller.isSaving;
   bool _moForm = true;
   bool _dangTaiDeadline = true;
+  String _colorKey = 'violet';
+  String _iconKey = 'book';
   int? _locTinChi;
   String? _locGiangVien;
   Map<String, int> _soDeadlineTheoMon = {};
@@ -63,8 +67,8 @@ class _SubjectScreenState extends State<SubjectScreen> {
       .timKiem(_timKiemController.text)
       .where(
         (monHoc) =>
-            (_locTinChi == null || monHoc.soTinChi == _locTinChi) &&
-            (_locGiangVien == null || monHoc.giangVien == _locGiangVien),
+            (_locTinChi == null || monHoc.credits == _locTinChi) &&
+            (_locGiangVien == null || monHoc.teacher == _locGiangVien),
       )
       .toList();
 
@@ -84,6 +88,15 @@ class _SubjectScreenState extends State<SubjectScreen> {
     if (mounted) setState(() {});
   }
 
+  void _chonMauMonHoc(String value) => setState(() => _colorKey = value);
+
+  void _chonIconMonHoc(String value) => setState(() => _iconKey = value);
+
+  void _datLaiBieuTuongMonHoc() => setState(() {
+    _colorKey = 'violet';
+    _iconKey = 'book';
+  });
+
   void _thongBao(String message) {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
@@ -93,10 +106,7 @@ class _SubjectScreenState extends State<SubjectScreen> {
   // Đọc dữ liệu từ Firebase qua Controller
   Future<void> _layDanhSach() async {
     try {
-      await Future.wait([
-        _controller.layDanhSach(),
-        _laySoDeadline(),
-      ]);
+      await Future.wait([_controller.layDanhSach(), _laySoDeadline()]);
     } catch (e) {
       if (!mounted) return;
       _thongBao('Lỗi tải môn học: $e');
@@ -146,20 +156,27 @@ class _SubjectScreenState extends State<SubjectScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     final monHoc = MonHoc(
-      maMonHoc: _maMonHocController.text.trim(),
-      tenMonHoc: _tenMonHocController.text.trim(),
-      giangVien: _giangVienController.text.trim(),
-      soTinChi: int.parse(_soTinChiController.text.trim()),
+      id: _idController.text.trim(),
+      userId: AuthService().currentUid ?? '',
+      name: _nameController.text.trim(),
+      color: _colorKey,
+      icon: _iconKey,
+      teacher: _teacherController.text.trim(),
+      credits: int.parse(_creditsController.text.trim()),
     );
 
     try {
       await _controller.themMonHoc(monHoc);
       if (!mounted) return;
 
-      _maMonHocController.clear();
-      _tenMonHocController.clear();
-      _giangVienController.clear();
-      _soTinChiController.clear();
+      _idController.clear();
+      _nameController.clear();
+      _teacherController.clear();
+      _creditsController.clear();
+      setState(() {
+        _colorKey = 'violet';
+        _iconKey = 'book';
+      });
 
       _thongBao('Thêm môn học thành công');
     } catch (e) {
@@ -180,7 +197,7 @@ class _SubjectScreenState extends State<SubjectScreen> {
           danhSachMonHoc: _danhSachMonHoc,
           tuKhoaBanDau: _timKiemController.text,
           tinChiBanDau: _locTinChi,
-          giangVienBanDau: _locGiangVien,
+          teacherBanDau: _locGiangVien,
           onEdit: _suaMonHoc,
         ),
       ),
@@ -201,7 +218,7 @@ class _SubjectScreenState extends State<SubjectScreen> {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Xóa môn học'),
-        content: Text('Bạn có chắc muốn xóa ${monHoc.tenMonHoc}?'),
+        content: Text('Bạn có chắc muốn xóa ${monHoc.name}?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
@@ -218,7 +235,7 @@ class _SubjectScreenState extends State<SubjectScreen> {
     if (xacNhan != true || !mounted) return;
 
     try {
-      await _controller.xoaMonHoc(monHoc.maMonHoc);
+      await _controller.xoaMonHoc(monHoc.id);
       if (!mounted) return;
       _thongBao('Xóa môn học thành công');
     } catch (e) {
@@ -256,10 +273,10 @@ class _SubjectScreenState extends State<SubjectScreen> {
     _controller.removeListener(_capNhatGiaoDien);
     TaskService.taskChanges.removeListener(_onTaskChanges);
     _controller.dispose();
-    _maMonHocController.dispose();
-    _tenMonHocController.dispose();
-    _giangVienController.dispose();
-    _soTinChiController.dispose();
+    _idController.dispose();
+    _nameController.dispose();
+    _teacherController.dispose();
+    _creditsController.dispose();
     _timKiemController.dispose();
     super.dispose();
   }
@@ -418,7 +435,7 @@ class _SubjectScreenState extends State<SubjectScreen> {
                   monHoc: monHoc,
                   isSaving: _dangLuu,
                   isLoadingDeadlines: _dangTaiDeadline,
-                  deadlineCount: _soDeadlineTheoMon[monHoc.maMonHoc] ?? 0,
+                  deadlineCount: _soDeadlineTheoMon[monHoc.id] ?? 0,
                   onEdit: (monHoc) async {
                     await _suaMonHoc(monHoc);
                   },

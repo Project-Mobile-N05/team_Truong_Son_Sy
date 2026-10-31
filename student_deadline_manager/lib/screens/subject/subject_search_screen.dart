@@ -4,14 +4,14 @@ class _SubjectSearchScreen extends StatefulWidget {
   final List<MonHoc> danhSachMonHoc;
   final String tuKhoaBanDau;
   final int? tinChiBanDau;
-  final String? giangVienBanDau;
+  final String? teacherBanDau;
   final Future<MonHoc?> Function(MonHoc) onEdit;
 
   const _SubjectSearchScreen({
     required this.danhSachMonHoc,
     required this.tuKhoaBanDau,
     required this.tinChiBanDau,
-    required this.giangVienBanDau,
+    required this.teacherBanDau,
     required this.onEdit,
   });
 
@@ -26,15 +26,14 @@ class _SubjectSearchScreenState extends State<_SubjectSearchScreen> {
   String? _teacher;
 
   int get _activeFilterCount =>
-      (_credits != null ? 1 : 0) +
-      (_teacher != null ? 1 : 0);
+      (_credits != null ? 1 : 0) + (_teacher != null ? 1 : 0);
 
   List<int> get _creditOptions =>
-      _subjects.map((subject) => subject.soTinChi).toSet().toList()..sort();
+      _subjects.map((subject) => subject.credits).toSet().toList()..sort();
 
   List<String> get _teacherOptions =>
       _subjects
-          .map((subject) => subject.giangVien.trim())
+          .map((subject) => subject.teacher.trim())
           .where((teacher) => teacher.isNotEmpty)
           .toSet()
           .toList()
@@ -45,12 +44,12 @@ class _SubjectSearchScreenState extends State<_SubjectSearchScreen> {
     return _subjects.where((subject) {
       final matchesKeyword =
           keyword.isEmpty ||
-          subject.maMonHoc.toLowerCase().contains(keyword) ||
-          subject.tenMonHoc.toLowerCase().contains(keyword) ||
-          subject.giangVien.toLowerCase().contains(keyword);
+          subject.id.toLowerCase().contains(keyword) ||
+          subject.name.toLowerCase().contains(keyword) ||
+          subject.teacher.toLowerCase().contains(keyword);
       return matchesKeyword &&
-          (_credits == null || subject.soTinChi == _credits) &&
-          (_teacher == null || subject.giangVien.trim() == _teacher);
+          (_credits == null || subject.credits == _credits) &&
+          (_teacher == null || subject.teacher.trim() == _teacher);
     }).toList();
   }
 
@@ -60,7 +59,7 @@ class _SubjectSearchScreenState extends State<_SubjectSearchScreen> {
     _searchController = TextEditingController(text: widget.tuKhoaBanDau);
     _subjects = List<MonHoc>.of(widget.danhSachMonHoc);
     _credits = widget.tinChiBanDau;
-    _teacher = widget.giangVienBanDau;
+    _teacher = widget.teacherBanDau;
   }
 
   @override
@@ -167,7 +166,7 @@ class _SubjectSearchScreenState extends State<_SubjectSearchScreen> {
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(
-                        subject.maMonHoc,
+                        subject.id,
                         style: const TextStyle(
                           color: _primary,
                           fontSize: 10,
@@ -176,7 +175,7 @@ class _SubjectSearchScreenState extends State<_SubjectSearchScreen> {
                       ),
                     ),
                     Text(
-                      '${subject.soTinChi} tín chỉ',
+                      '${subject.credits} tín chỉ',
                       style: const TextStyle(
                         color: Color(0xFF777B8F),
                         fontSize: 11,
@@ -186,7 +185,7 @@ class _SubjectSearchScreenState extends State<_SubjectSearchScreen> {
                 ),
                 const SizedBox(height: 5),
                 Text(
-                  subject.tenMonHoc,
+                  subject.name,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
@@ -197,7 +196,7 @@ class _SubjectSearchScreenState extends State<_SubjectSearchScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'GV: ${subject.giangVien}',
+                  'GV: ${subject.teacher}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
@@ -218,7 +217,7 @@ class _SubjectSearchScreenState extends State<_SubjectSearchScreen> {
                   if (updated == null || !mounted) return;
                   setState(() {
                     final index = _subjects.indexWhere(
-                      (item) => item.maMonHoc == updated.maMonHoc,
+                      (item) => item.id == updated.id,
                     );
                     if (index >= 0) _subjects[index] = updated;
                   });
