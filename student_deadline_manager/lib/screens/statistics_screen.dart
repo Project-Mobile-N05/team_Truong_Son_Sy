@@ -61,10 +61,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
       _error = null;
     });
     try {
-      final tasks = await _taskService.findAll(
-        uid,
-        forceRefresh: forceRefresh,
-      );
+      final tasks = await _taskService.findAll(uid, forceRefresh: forceRefresh);
       if (!mounted) return;
       setState(() {
         _tasks = tasks;
@@ -334,12 +331,9 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     final counts = _deadlineCountBySubject;
     final subjects =
         widget.danhSachMonHoc
-            .where((subject) => (counts[subject.maMonHoc] ?? 0) > 0)
+            .where((subject) => (counts[subject.id] ?? 0) > 0)
             .toList()
-          ..sort(
-            (a, b) =>
-                (counts[b.maMonHoc] ?? 0).compareTo(counts[a.maMonHoc] ?? 0),
-          );
+          ..sort((a, b) => (counts[b.id] ?? 0).compareTo(counts[a.id] ?? 0));
 
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
@@ -372,7 +366,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                 const Divider(height: 12, color: Color(0xFFE5E7F0)),
               _SubjectDeadlineRow(
                 subject: subjects[index],
-                count: counts[subjects[index].maMonHoc] ?? 0,
+                count: counts[subjects[index].id] ?? 0,
                 total: totalDeadlines,
               ),
             ],
@@ -546,7 +540,7 @@ class _SubjectDeadlineRow extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          subject.tenMonHoc,
+          subject.name,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: const TextStyle(
@@ -560,7 +554,7 @@ class _SubjectDeadlineRow extends StatelessWidget {
           children: [
             Expanded(
               child: Text(
-                subject.maMonHoc,
+                subject.id,
                 style: const TextStyle(color: _muted, fontSize: 13),
               ),
             ),
