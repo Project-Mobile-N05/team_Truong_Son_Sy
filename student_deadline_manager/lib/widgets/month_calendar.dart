@@ -55,7 +55,7 @@ class MonthCalendar extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(8, 8, 8, 12),
       decoration: BoxDecoration(
-        color: scheme.surface,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(24),
         border: Border.all(color: scheme.outlineVariant),
       ),
