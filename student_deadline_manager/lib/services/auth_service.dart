@@ -95,8 +95,6 @@ class AuthService {
     }
   }
 
-  /// Đăng ký (Hình 3.5): kiểm tra trùng mã sinh viên, tạo tài khoản Firebase Auth,
-  /// rồi giữ chỗ mã sinh viên và lưu hồ sơ users/{uid}. Lưu lỗi thì hoàn tác.
   Future<AccountData> register({
     required String studentCode,
     required String fullName,
@@ -113,7 +111,6 @@ class AuthService {
     try {
       final code = studentCode.trim();
 
-      // Bước 1: mã sinh viên đã có người đăng ký chưa?
       try {
         if (await _codes.getById(code) != null) {
           throw const AuthException('Mã sinh viên đã được đăng ký');
@@ -122,7 +119,6 @@ class AuthService {
         throw AuthException(e.message);
       }
 
-      // Bước 2: tạo tài khoản (email trùng thì Firebase báo email-already-in-use).
       UserCredential cred;
       try {
         cred = await _auth.createUserWithEmailAndPassword(
@@ -133,7 +129,6 @@ class AuthService {
         throw AuthException(_message(e.code));
       }
 
-      // Bước 3: giữ chỗ mã sinh viên và lưu hồ sơ users/{uid}.
       final user = cred.user!;
       final profile = AccountData(
         id: user.uid,
@@ -148,7 +143,7 @@ class AuthService {
         return profile;
       } on RepositoryException catch (e) {
         try {
-          await _codes.delete(code); // phải xóa trước khi xóa tài khoản
+          await _codes.delete(code);
         } catch (_) {}
         try {
           await user.delete();

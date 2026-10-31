@@ -55,6 +55,12 @@ void main() {
       await service.schedule(makeTask(id: 't2', title: 'Thi giữa kỳ'));
       expect((await service.findAll()).length, 2);
     });
+
+        test('tạo nhắc nhở thì báo cho các màn hình đang mở tải lại', () async {
+      final before = ReminderService.changes.value;
+      await service.schedule(makeTask());
+      expect(ReminderService.changes.value, greaterThan(before));
+    });
   });
 
   group('cancelForTask', () {

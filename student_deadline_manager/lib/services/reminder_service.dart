@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import '../models/notification_status.dart';
 import '../models/reminder_data.dart';
 import '../models/task.dart';
@@ -20,6 +21,9 @@ class ReminderService {
   /// Nhắc trước hạn bao lâu.
   static const Duration remindBefore = Duration(hours: 24);
 
+  /// Tăng lên mỗi khi dữ liệu nhắc nhở thay đổi, để các màn hình đang mở tự tải lại.
+  static final ValueNotifier<int> changes = ValueNotifier<int>(0);
+
   final FirestoreRepository<ReminderData> _repo;
   final String? Function() _currentUid;
   final DateTime Function() _clock;
@@ -34,6 +38,8 @@ class ReminderService {
                 'reminders', ReminderData.fromMap),
         _currentUid = currentUid ?? (() => AuthService().currentUid),
         _clock = clock ?? DateTime.now;
+
+  void _notifyChanged() => changes.value++;
 
   /// Nhắc nhở của người đăng nhập, sắp xếp theo thời điểm nhắc.
   Future<List<ReminderData>> findAll() async {
@@ -55,6 +61,7 @@ class ReminderService {
     final uid = _requireUid();
     if (await _hasPendingForTask(uid, taskId)) return;
     await _guard(() => _repo.add(_newReminder(uid, task, now)));
+    _notifyChanged();
   }
 
   /// Bộ quét (Hình 3.3): với các deadline chưa xong có hạn trong 24 giờ tới,
@@ -80,6 +87,7 @@ class ReminderService {
       await _guard(() => _repo.add(_newReminder(uid, task, t0)));
       created++;
     }
+    if (created > 0) _notifyChanged();
     return created;
   }
 
@@ -96,15 +104,20 @@ class ReminderService {
   }
 
   /// Đánh dấu đã gửi thành công, ghi thời điểm gửi.
-  Future<void> markSent(ReminderData r, {DateTime? at}) => _guard(() =>
-      _repo.update(
-          r.id!,
-          r.copyWith(
-              status: NotificationStatus.sent, sentAt: at ?? _clock())));
+  Future<void> markSent(ReminderData r, {DateTime? at}) async {
+    await _guard(() => _repo.update(
+        r.id!,
+        r.copyWith(
+            status: NotificationStatus.sent, sentAt: at ?? _clock())));
+    _notifyChanged();
+  }
 
   /// Đánh dấu gửi thất bại.
-  Future<void> markFailed(ReminderData r) => _guard(() => _repo.update(
-      r.id!, r.copyWith(status: NotificationStatus.failed)));
+  Future<void> markFailed(ReminderData r) async {
+    await _guard(() => _repo.update(
+        r.id!, r.copyWith(status: NotificationStatus.failed)));
+    _notifyChanged();
+  }
 
   /// Hủy (tắt) các nhắc nhở đang chờ của một deadline.
   Future<void> cancelForTask(String taskId) async {
@@ -115,6 +128,7 @@ class ReminderService {
           reminder.id!,
           reminder.copyWith(status: NotificationStatus.cancelled)));
     }
+    if (pending.isNotEmpty) _notifyChanged();
   }
 
   Future<bool> _hasPendingForTask(String uid, String taskId) async =>
@@ -152,9 +166,13 @@ class ReminderService {
           )
         : r.copyWith(status: NotificationStatus.cancelled);
     await _guard(() => _repo.update(r.id!, updated));
+    _notifyChanged();
   }
 
-  Future<void> remove(String id) => _guard(() => _repo.delete(id));
+  Future<void> remove(String id) async {
+    await _guard(() => _repo.delete(id));
+    _notifyChanged();
+  }
 
   // ---------- Nội bộ ----------
 
