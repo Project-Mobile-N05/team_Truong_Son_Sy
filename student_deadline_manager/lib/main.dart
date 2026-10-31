@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
@@ -8,6 +10,7 @@ import 'navigation/main_navigation.dart';
 import 'screens/login_screen.dart';
 import 'services/auth_service.dart';
 import 'widgets/app_loading_screen.dart';
+import 'widgets/login_success_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -65,7 +68,7 @@ class _FirebaseUnavailableScreen extends StatelessWidget {
   }
 }
 
-class AuthGate extends StatelessWidget {
+class AuthGate extends StatefulWidget {
   final Stream<User?>? authStateChanges;
   final ValueListenable<bool>? busy;
   final WidgetBuilder? signedOutBuilder;
@@ -78,24 +81,67 @@ class AuthGate extends StatelessWidget {
   });
 
   @override
+  State<AuthGate> createState() => _AuthGateState();
+}
+
+class _AuthGateState extends State<AuthGate> {
+  StreamSubscription<User?>? _authSubscription;
+  User? _user;
+  bool _authResolved = false;
+  bool _showLoginSuccess = false;
+  Timer? _successTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _authSubscription =
+        (widget.authStateChanges ?? FirebaseAuth.instance.authStateChanges())
+            .listen(_onAuthChanged);
+  }
+
+  void _onAuthChanged(User? user) {
+    if (!mounted) return;
+    final firstAuthEvent = !_authResolved;
+    final signedInNow = _authResolved && _user == null && user != null;
+    _successTimer?.cancel();
+    setState(() {
+      _authResolved = true;
+      _user = user;
+      // Don't animate a session restored on app startup.
+      _showLoginSuccess = !firstAuthEvent && signedInNow;
+    });
+    if (signedInNow) {
+      _successTimer = Timer(const Duration(milliseconds: 1050), () {
+        if (!mounted) return;
+        setState(() => _showLoginSuccess = false);
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _successTimer?.cancel();
+    _authSubscription?.cancel();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder<bool>(
-      valueListenable: busy ?? AuthService.busy,
+      valueListenable: widget.busy ?? AuthService.busy,
       builder: (context, busy, _) {
-        return StreamBuilder<User?>(
-          stream: authStateChanges ?? FirebaseAuth.instance.authStateChanges(),
-          builder: (context, snap) {
-            if (snap.connectionState == ConnectionState.waiting) {
-              return const AppLoadingScreen(
-                message: 'Đang kiểm tra phiên đăng nhập…',
-              );
-            }
-            if (busy || snap.data == null) {
-              return signedOutBuilder?.call(context) ?? const LoginScreen();
-            }
-            return const MainNavigation();
-          },
-        );
+        if (!_authResolved) {
+          return const AppLoadingScreen(
+            message: 'Đang kiểm tra phiên đăng nhập…',
+          );
+        }
+        if (_user != null && _showLoginSuccess) {
+          return const LoginSuccessScreen();
+        }
+        if (busy || _user == null) {
+          return widget.signedOutBuilder?.call(context) ?? const LoginScreen();
+        }
+        return const MainNavigation();
       },
     );
   }
