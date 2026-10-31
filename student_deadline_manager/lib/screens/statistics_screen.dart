@@ -46,7 +46,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     _loadTasks();
   }
 
-  Future<void> _loadTasks() async {
+  Future<void> _loadTasks({bool forceRefresh = false}) async {
     final uid = AuthService().currentUid;
     if (uid == null) {
       setState(() {
@@ -61,7 +61,10 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
       _error = null;
     });
     try {
-      final tasks = await _taskService.findAll(uid);
+      final tasks = await _taskService.findAll(
+        uid,
+        forceRefresh: forceRefresh,
+      );
       if (!mounted) return;
       setState(() {
         _tasks = tasks;
@@ -182,7 +185,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
         ),
       ),
       body: RefreshIndicator(
-        onRefresh: _loadTasks,
+        onRefresh: () => _loadTasks(forceRefresh: true),
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),

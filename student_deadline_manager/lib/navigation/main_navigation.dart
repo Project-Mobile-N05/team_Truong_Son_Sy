@@ -42,6 +42,7 @@ class MainNavigation extends StatefulWidget {
 
 class _MainNavigationState extends State<MainNavigation> {
   int _selectedIndex = 0;
+  final Set<int> _visitedTabs = {0};
 
   late final List<AppTab> _tabs = [
     AppTab(
@@ -91,7 +92,7 @@ class _MainNavigationState extends State<MainNavigation> {
   void _open(String key) {
     final i = _tabs.indexWhere((t) => t.key == key);
     if (i >= 0) {
-      setState(() => _selectedIndex = i);
+      _selectTab(i);
       return;
     }
     final push = _pushes[key];
@@ -100,6 +101,14 @@ class _MainNavigationState extends State<MainNavigation> {
     } else {
       _toast('Chức năng này đang được phát triển');
     }
+  }
+
+  void _selectTab(int index) {
+    if (index == _selectedIndex && _visitedTabs.contains(index)) return;
+    setState(() {
+      _visitedTabs.add(index);
+      _selectedIndex = index;
+    });
   }
 
   void _toast(String msg) =>
@@ -140,11 +149,14 @@ class _MainNavigationState extends State<MainNavigation> {
     return Scaffold(
       body: IndexedStack(
         index: _selectedIndex,
-        children: [for (final t in _tabs) t.screen],
+        children: [
+          for (var i = 0; i < _tabs.length; i++)
+            _visitedTabs.contains(i) ? _tabs[i].screen : const SizedBox.shrink(),
+        ],
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _selectedIndex,
-        onDestinationSelected: (i) => setState(() => _selectedIndex = i),
+        onDestinationSelected: _selectTab,
         backgroundColor: Colors.white,
         indicatorColor: const Color(0xFFE6E0F5),
         destinations: [

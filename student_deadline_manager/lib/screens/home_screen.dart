@@ -57,15 +57,17 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  List<Task> _tasks = [];
+  List<Task> _upcomingTasks = [];
+  List<Task> _todayTasks = [];
+  List<Task> _thisWeekTasks = [];
   String? _error;
   String _studentCode = '';
   bool _loading = true;
 
   /// Deadline chưa xong trong 7 ngày tới, và deadline của hôm nay.
-  List<Task> get _upcoming => TaskService.upcoming(_tasks);
-  List<Task> get _today => TaskService.tasksOfDay(_tasks, DateTime.now());
-  List<Task> get _thisWeek => TaskService.tasksThisWeek(_tasks);
+  List<Task> get _upcoming => _upcomingTasks;
+  List<Task> get _today => _todayTasks;
+  List<Task> get _thisWeek => _thisWeekTasks;
 
   @override
   void initState() {
@@ -79,7 +81,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   /// Tải mã sinh viên và danh sách deadline (cũng dùng cho kéo để làm mới).
-  Future<void> _load() async {
+  Future<void> _load({bool forceRefresh = false}) async {
     final uid = AuthService().currentUid;
     if (uid == null) {
       if (mounted) {
@@ -96,17 +98,19 @@ class _HomeScreenState extends State<HomeScreen> {
         _error = null;
       });
     }
+    final profileFuture = AuthService().getProfile().then((profile) {
+      _studentCode = profile.studentCode;
+    }).catchError((Object _) {});
     try {
-      final p = await AuthService().getProfile();
-      _studentCode = p.studentCode;
-    } catch (_) {
-      // Không có hồ sơ thì hiện mặc định, không cần báo lỗi ở Trang chủ.
-    }
-    try {
-      final tasks = await TaskService().findAll(uid);
+      final tasksFuture =
+          TaskService().findAll(uid, forceRefresh: forceRefresh);
+      final tasks = await tasksFuture;
+      await profileFuture;
       if (mounted) {
         setState(() {
-          _tasks = tasks;
+          _upcomingTasks = TaskService.upcoming(tasks);
+          _todayTasks = TaskService.tasksOfDay(tasks, DateTime.now());
+          _thisWeekTasks = TaskService.tasksThisWeek(tasks);
           _error = null;
           _loading = false;
         });
@@ -134,7 +138,7 @@ class _HomeScreenState extends State<HomeScreen> {
       backgroundColor: Colors.white,
       body: SafeArea(
         child: RefreshIndicator(
-          onRefresh: _load,
+          onRefresh: () => _load(forceRefresh: true),
           child: ListView(
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.fromLTRB(17, 16, 17, 16),

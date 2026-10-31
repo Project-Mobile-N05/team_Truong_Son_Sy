@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import '../models/task.dart';
 import '../models/task_status.dart';
@@ -28,6 +30,10 @@ class TaskService {
 
   /// Báo thay đổi deadline để cập nhật các màn hình còn được giữ trong navigation.
   static final ValueNotifier<int> taskChanges = ValueNotifier<int>(0);
+  static const Duration _cacheTtl = Duration(seconds: 20);
+  static final Map<String, _TaskCacheEntry> _taskCache = {};
+  static final Map<String, Future<List<Task>>> _pendingLoads = {};
+  static final Map<String, int> _cacheGeneration = {};
 
   /// [repository]: truyền repository dùng FakeFirebaseFirestore khi unit test.
   /// [subjectExists], [scheduleReminder], [cancelReminders]: điểm nối với
@@ -89,17 +95,47 @@ class TaskService {
     );
     final id = await _guard(() => _repo.add(task));
     final saved = task.copyWith(id: id);
-    await _safeReminder(() => _scheduleReminder?.call(saved));
-    _notifyTaskChanges();
+    _notifyTaskChanges(userId);
+    if (saved.status != TaskStatus.completed) {
+      unawaited(_safeReminder(() => _scheduleReminder?.call(saved)));
+    }
     return saved;
   }
 
   /// Danh sách deadline của user, sắp xếp theo hạn nộp tăng dần.
-  Future<List<Task>> findAll(String userId) async {
+  Future<List<Task>> findAll(
+    String userId, {
+    bool forceRefresh = false,
+  }) async {
     _requireUser(userId);
+    final cached = _taskCache[userId];
+    if (!forceRefresh &&
+        cached != null &&
+        DateTime.now().difference(cached.loadedAt) < _cacheTtl) {
+      return cached.tasks;
+    }
+    final pending = _pendingLoads[userId];
+    if (pending != null) return pending;
+
+    final generation = _cacheGeneration[userId] ?? 0;
+    final request = _loadAndCache(userId, generation);
+    _pendingLoads[userId] = request;
+    try {
+      return await request;
+    } finally {
+      if (identical(_pendingLoads[userId], request)) {
+        _pendingLoads.remove(userId);
+      }
+    }
+  }
+
+  Future<List<Task>> _loadAndCache(String userId, int generation) async {
     final list = await _guard(() => _repo.getByUser(userId));
-    list.sort((a, b) => a.taskDatetime.compareTo(b.taskDatetime));
-    return list;
+    final tasks = List<Task>.unmodifiable(list);
+    if ((_cacheGeneration[userId] ?? 0) == generation) {
+      _taskCache[userId] = _TaskCacheEntry(tasks, DateTime.now());
+    }
+    return tasks;
   }
 
   /// Một deadline theo id. Không có hoặc không thuộc user thì ném lỗi.
@@ -138,17 +174,15 @@ class TaskService {
       updatedAt: DateTime.now(),
     );
     await _guard(() => _repo.update(id, updated));
+    _notifyTaskChanges(userId);
 
     final changed =
         updated.taskDatetime != old.taskDatetime ||
+        updated.title != old.title ||
         updated.status != old.status;
     if (changed) {
-      await _safeReminder(() => _cancelReminders?.call(id));
-      if (updated.status != TaskStatus.completed) {
-        await _safeReminder(() => _scheduleReminder?.call(updated));
-      }
+      unawaited(_syncReminder(updated, id));
     }
-    _notifyTaskChanges();
     return updated;
   }
 
@@ -156,8 +190,8 @@ class TaskService {
   Future<void> remove(String userId, String id) async {
     await findOne(userId, id);
     await _guard(() => _repo.delete(id));
-    await _safeReminder(() => _cancelReminders?.call(id));
-    _notifyTaskChanges();
+    _notifyTaskChanges(userId);
+    unawaited(_safeReminder(() => _cancelReminders?.call(id)));
   }
 
   // ---------- Hỗ trợ màn hình Lịch ----------
@@ -212,7 +246,10 @@ class TaskService {
     }).toList()..sort((a, b) => a.taskDatetime.compareTo(b.taskDatetime));
   }
 
-  void _notifyTaskChanges() {
+  void _notifyTaskChanges(String userId) {
+    _taskCache.remove(userId);
+    _cacheGeneration[userId] = (_cacheGeneration[userId] ?? 0) + 1;
+    _pendingLoads.remove(userId);
     taskChanges.value++;
   }
 
@@ -244,7 +281,9 @@ class TaskService {
     String? excludeId,
   }) async {
     final key = title.trim().toLowerCase();
-    final list = await _guard(() => _repo.getByUser(userId));
+    // Reuse the same short-lived, per-user snapshot shown by the app instead
+    // of issuing another full collection read for each save.
+    final list = await findAll(userId);
     final dup = list.any(
       (t) => t.id != excludeId && t.title.trim().toLowerCase() == key,
     );
@@ -260,8 +299,22 @@ class TaskService {
     }
   }
 
+  Future<void> _syncReminder(Task task, String taskId) async {
+    await _safeReminder(() => _cancelReminders?.call(taskId));
+    if (task.status != TaskStatus.completed) {
+      await _safeReminder(() => _scheduleReminder?.call(task));
+    }
+  }
+
   String? _blankToNull(String? s) {
     final t = s?.trim();
     return (t == null || t.isEmpty) ? null : t;
   }
+}
+
+class _TaskCacheEntry {
+  final List<Task> tasks;
+  final DateTime loadedAt;
+
+  const _TaskCacheEntry(this.tasks, this.loadedAt);
 }

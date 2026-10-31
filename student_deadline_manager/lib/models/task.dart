@@ -62,12 +62,12 @@ class Task extends BaseEntity {
   @override
   Map<String, Object> toMap() => {
         'userId': userId,
-        if (subjectId != null) 'subjectId': subjectId!,
+        'subjectId': ?subjectId,
         'title': title,
-        if (type != null) 'type': type!.name,
+        'type': ?type?.name,
         'taskDatetime': Timestamp.fromDate(taskDatetime),
-        if (room != null) 'room': room!,
-        if (notes != null) 'notes': notes!,
+        'room': ?room,
+        'notes': ?notes,
         'status': status.name,
         'createdAt': Timestamp.fromDate(createdAt),
         'updatedAt': Timestamp.fromDate(updatedAt),

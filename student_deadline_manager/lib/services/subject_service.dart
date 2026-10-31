@@ -21,9 +21,7 @@ class SubjectService {
 
   // Đọc danh sách môn học
   Future<List<MonHoc>> layDanhSach() async {
-    final snapshot = await collection.get(
-      const GetOptions(source: Source.server),
-    );
+    final snapshot = await collection.get();
 
     return snapshot.docs.map((doc) {
       final data = doc.data();

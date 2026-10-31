@@ -93,12 +93,14 @@ class _SubjectScreenState extends State<SubjectScreen> {
   // Đọc dữ liệu từ Firebase qua Controller
   Future<void> _layDanhSach() async {
     try {
-      await _controller.layDanhSach();
+      await Future.wait([
+        _controller.layDanhSach(),
+        _laySoDeadline(),
+      ]);
     } catch (e) {
       if (!mounted) return;
       _thongBao('Lỗi tải môn học: $e');
     }
-    await _laySoDeadline();
   }
 
   Future<void> _laySoDeadline() async {

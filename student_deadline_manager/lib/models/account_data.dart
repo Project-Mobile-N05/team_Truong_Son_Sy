@@ -55,7 +55,7 @@ class AccountData extends BaseEntity {
         'studentCode': studentCode,
         'fullName': fullName,
         'email': email,
-        if (avatarUrl != null) 'avatarUrl': avatarUrl!,
+        'avatarUrl': ?avatarUrl,
         'createdAt': Timestamp.fromDate(createdAt),
         'updatedAt': Timestamp.fromDate(updatedAt),
       };

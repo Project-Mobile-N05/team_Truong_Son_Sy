@@ -33,9 +33,12 @@ class ReminderService {
   /// Nhắc nhở của người đăng nhập, sắp xếp theo thời điểm nhắc.
   Future<List<ReminderData>> findAll() async {
     final uid = _requireUid();
-    final list = await _guard(() => _repo.findWhere('userId', uid));
-    list.sort((a, b) => a.scheduledAt.compareTo(b.scheduledAt));
-    return list;
+    // Filter by owner (single-field index) and sort locally. The composite
+    // userId + scheduledAt index is optional for this small per-user list, and
+    // may not yet be deployed to existing Firebase projects.
+    final reminders = await _guard(() => _repo.findWhere('userId', uid));
+    reminders.sort((a, b) => a.scheduledAt.compareTo(b.scheduledAt));
+    return reminders;
   }
 
   /// Tạo nhắc nhở cho deadline. Đã có nhắc nhở đang bật cho deadline này thì bỏ qua.
@@ -43,10 +46,7 @@ class ReminderService {
     final taskId = task.id;
     if (taskId == null) return;
     final uid = _requireUid();
-    final all = await findAll();
-    final exists = all.any(
-        (r) => r.taskId == taskId && r.status == NotificationStatus.pending);
-    if (exists) return;
+    if (await _hasPendingForTask(uid, taskId)) return;
     await _guard(() => _repo.add(ReminderData(
           userId: uid,
           taskId: taskId,
@@ -57,11 +57,36 @@ class ReminderService {
 
   /// Hủy (tắt) các nhắc nhở đang chờ của một deadline.
   Future<void> cancelForTask(String taskId) async {
-    for (final r in await findAll()) {
-      if (r.taskId == taskId && r.status == NotificationStatus.pending) {
-        await _guard(() => _repo.update(
-            r.id!, r.copyWith(status: NotificationStatus.cancelled)));
-      }
+    final uid = _requireUid();
+    final pending = await _pendingForTask(uid, taskId);
+    for (final reminder in pending) {
+      await _guard(() => _repo.update(
+          reminder.id!,
+          reminder.copyWith(status: NotificationStatus.cancelled)));
+    }
+  }
+
+  Future<bool> _hasPendingForTask(String uid, String taskId) async =>
+      (await _pendingForTask(uid, taskId)).isNotEmpty;
+
+  Future<List<ReminderData>> _pendingForTask(String uid, String taskId) async {
+    try {
+      return await _guard(() => _repo.findWhereAll({
+            'userId': uid,
+            'taskId': taskId,
+            'status': NotificationStatus.pending.name,
+          }));
+    } on ReminderException catch (e) {
+      if (!e.message.contains('failed-precondition')) rethrow;
+
+      // Keep reminder creation/cancellation working before the composite index
+      // is deployed. This fallback reads only the signed-in user's reminders.
+      final reminders = await _guard(() => _repo.findWhere('userId', uid));
+      return reminders
+          .where((r) =>
+              r.taskId == taskId &&
+              r.status == NotificationStatus.pending)
+          .toList();
     }
   }
 

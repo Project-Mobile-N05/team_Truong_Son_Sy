@@ -7,9 +7,10 @@ Tổng quát hóa các đối tượng trong project bằng Generics và kế th
 
 | File | Nội dung |
 |------|----------|
-| `base_manager.dart` | `BaseEntity` và `BaseManager<T extends BaseEntity>` (lớp Generics dùng chung) |
-| `account_manager.dart` | `AccountData`, `AccountManager extends BaseManager<AccountData>` |
-| `reminder_manager.dart` | `ReminderData`, `ReminderManager extends BaseManager<ReminderData>` |
+| `controllers/base_manager.dart` | `BaseManager<T extends BaseEntity>` (lớp Generics dùng chung) |
+| `controllers/account_manager.dart` | `AccountData`, `AccountManager extends BaseManager<AccountData>` |
+| `models/reminder_summary.dart` | Snapshot tiêu đề/ngày/trạng thái dùng cho ví dụ manager; không phải model Firestore `ReminderData` |
+| `controllers/reminder_manager.dart` | `ReminderManager extends BaseManager<ReminderSummary>` |
 
 ## Đối tượng Generics
 - `BaseEntity`: lớp cha của mọi dữ liệu, có `toMap()` trả về `Map<String, Object>`.
