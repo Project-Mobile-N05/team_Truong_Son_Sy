@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import '../models/task.dart';
 import '../services/auth_service.dart';
@@ -55,37 +57,78 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  List<Task> _tasks = [];
+  List<Task> _upcomingTasks = [];
+  List<Task> _todayTasks = [];
+  List<Task> _thisWeekTasks = [];
   String? _error;
   String _studentCode = '';
+  bool _loading = true;
 
   /// Deadline chưa xong trong 7 ngày tới, và deadline của hôm nay.
-  List<Task> get _upcoming => TaskService.upcoming(_tasks);
-  List<Task> get _today => TaskService.tasksOfDay(_tasks, DateTime.now());
+  List<Task> get _upcoming => _upcomingTasks;
+  List<Task> get _today => _todayTasks;
+  List<Task> get _thisWeek => _thisWeekTasks;
 
   @override
   void initState() {
     super.initState();
+    TaskService.taskChanges.addListener(_onTaskChanges);
     _load();
   }
 
+  void _onTaskChanges() {
+    if (mounted) unawaited(_load());
+  }
+
   /// Tải mã sinh viên và danh sách deadline (cũng dùng cho kéo để làm mới).
-  Future<void> _load() async {
+  Future<void> _load({bool forceRefresh = false}) async {
     final uid = AuthService().currentUid;
-    if (uid == null) return;
-    try {
-      final p = await AuthService().getProfile();
-      _studentCode = p.studentCode;
-    } catch (_) {
-      // Không có hồ sơ thì hiện mặc định, không cần báo lỗi ở Trang chủ.
+    if (uid == null) {
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _error = 'Bạn chưa đăng nhập';
+        });
+      }
+      return;
     }
+    if (mounted) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
+    final profileFuture = AuthService().getProfile().then((profile) {
+      _studentCode = profile.studentCode;
+    }).catchError((Object _) {});
     try {
-      final tasks = await TaskService().findAll(uid);
-      if (mounted) setState(() { _tasks = tasks; _error = null; });
+      final tasksFuture =
+          TaskService().findAll(uid, forceRefresh: forceRefresh);
+      final tasks = await tasksFuture;
+      await profileFuture;
+      if (mounted) {
+        setState(() {
+          _upcomingTasks = TaskService.upcoming(tasks);
+          _todayTasks = TaskService.tasksOfDay(tasks, DateTime.now());
+          _thisWeekTasks = TaskService.tasksThisWeek(tasks);
+          _error = null;
+          _loading = false;
+        });
+      }
     } on TaskException catch (e) {
-      if (mounted) setState(() => _error = e.message);
+      if (mounted) {
+        setState(() {
+          _error = e.message;
+          _loading = false;
+        });
+      }
     } catch (e) {
-      if (mounted) setState(() => _error = 'Có lỗi xảy ra: $e');
+      if (mounted) {
+        setState(() {
+          _error = 'Có lỗi xảy ra: $e';
+          _loading = false;
+        });
+      }
     }
   }
 
@@ -95,7 +138,7 @@ class _HomeScreenState extends State<HomeScreen> {
       backgroundColor: Colors.white,
       body: SafeArea(
         child: RefreshIndicator(
-          onRefresh: _load,
+          onRefresh: () => _load(forceRefresh: true),
           child: ListView(
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.fromLTRB(17, 16, 17, 16),
@@ -112,7 +155,7 @@ class _HomeScreenState extends State<HomeScreen> {
               _divider(),
               _heading('Deadline sắp tới'),
               const SizedBox(height: 12),
-              ..._taskCards(_upcoming.take(3).toList(),
+              ..._taskCards(_upcoming,
                   empty: 'Chưa có deadline nào sắp đến'),
               const SizedBox(height: 20),
               _heading('Việc hôm nay'),
@@ -123,6 +166,12 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    TaskService.taskChanges.removeListener(_onTaskChanges);
+    super.dispose();
   }
 
   // ---- Các khối của màn hình ----
@@ -159,7 +208,7 @@ class _HomeScreenState extends State<HomeScreen> {
             border: Border.all(color: const Color(0xFF3DAA5C)),
             borderRadius: BorderRadius.circular(4),
           ),
-          child: Text('${_upcoming.length} việc',
+          child: Text(_loading ? '…' : '${_upcoming.length} việc',
               style: const TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w800,
@@ -200,11 +249,13 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _weekBanner() {
-    final n = _upcoming.length;
-    final text = _error ??
-        (n == 0
-            ? 'Chưa có deadline nào trong tuần này'
-            : 'Bạn có $n deadline trong tuần này');
+    final n = _thisWeek.length;
+    final text = _loading
+        ? 'Đang tải deadline...'
+        : _error ??
+            (n == 0
+                ? 'Chưa có deadline nào trong tuần này'
+                : 'Bạn có $n deadline trong tuần này');
     return SoftCard(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
       child: Row(children: [
@@ -227,6 +278,19 @@ class _HomeScreenState extends State<HomeScreen> {
 
   /// Danh sách thẻ deadline, hoặc một thẻ báo trống nếu không có.
   List<Widget> _taskCards(List<Task> tasks, {required String empty}) {
+    if (_loading && tasks.isEmpty) {
+      return [
+        const SoftCard(
+          child: Center(
+            child: SizedBox(
+              width: 22,
+              height: 22,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          ),
+        ),
+      ];
+    }
     if (tasks.isEmpty) {
       return [
         SoftCard(

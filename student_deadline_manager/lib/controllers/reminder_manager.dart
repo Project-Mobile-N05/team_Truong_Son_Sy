@@ -1,9 +1,9 @@
-import '../models/reminder_data.dart';
+import '../models/reminder_summary.dart';
 import 'base_manager.dart';
 
-class ReminderManager extends BaseManager<ReminderData> {
+class ReminderManager extends BaseManager<ReminderSummary> {
   ReminderManager()
-      : super(const ReminderData(
+      : super(const ReminderSummary(
           title: "Nộp Bài tập thực hành Flutter",
           dueDate: "16/09/2026",
           status: "Đang thực hiện",
@@ -14,7 +14,7 @@ class ReminderManager extends BaseManager<ReminderData> {
   String get status => data.status;
 
   void setReminder(String title, String dueDate, String status) {
-    setData(ReminderData(
+    setData(ReminderSummary(
         id: data.id, title: title, dueDate: dueDate, status: status));
   }
 

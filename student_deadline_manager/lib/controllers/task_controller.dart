@@ -41,6 +41,9 @@ class TaskController extends ChangeNotifier {
   static String? _authUid() => AuthService().currentUid;
 
   List<Task> _tasks = [];
+  Map<DateTime, List<Task>> _tasksByDay = const <DateTime, List<Task>>{};
+  Set<DateTime> _markedDays = const <DateTime>{};
+  Set<DateTime> _overdueDays = const <DateTime>{};
   List<SubjectOption> _subjects = [];
   bool _loading = false;
   String? _error;
@@ -64,17 +67,14 @@ class TaskController extends ChangeNotifier {
   }
 
   /// Các ngày có deadline (để đánh dấu chấm trên lịch).
-  Set<DateTime> get markedDays => TaskService.groupByDay(_tasks).keys.toSet();
+  Set<DateTime> get markedDays => _markedDays;
 
   /// Các ngày có deadline quá hạn (chấm đỏ).
-  Set<DateTime> get overdueDays => {
-        for (final t in _tasks)
-          if (t.isOverdue()) TaskService.dayKey(t.taskDatetime),
-      };
+  Set<DateTime> get overdueDays => _overdueDays;
 
   /// Deadline của ngày đang chọn, sắp xếp theo giờ.
   List<Task> get selectedTasks =>
-      TaskService.tasksOfDay(_tasks, _selectedDay);
+      _tasksByDay[_selectedDay] ?? const <Task>[];
 
   void selectDay(DateTime d) {
     _selectedDay = TaskService.dayKey(d);
@@ -89,7 +89,7 @@ class TaskController extends ChangeNotifier {
   }
 
   /// Tải lại danh sách deadline và môn học.
-  Future<void> load() async {
+  Future<void> load({bool forceRefresh = false}) async {
     final uid = _currentUid();
     if (uid == null) {
       _error = 'Bạn chưa đăng nhập';
@@ -100,8 +100,12 @@ class TaskController extends ChangeNotifier {
     _error = null;
     notifyListeners();
     try {
-      _tasks = await _service.findAll(uid);
-      await _loadSubjects(uid);
+      final tasksFuture =
+          _service.findAll(uid, forceRefresh: forceRefresh);
+      final subjectsFuture = _loadSubjects(uid);
+      _tasks = await tasksFuture;
+      _indexTasksByDay();
+      await subjectsFuture;
     } on TaskException catch (e) {
       _error = e.message;
     } catch (e) {
@@ -120,6 +124,15 @@ class TaskController extends ChangeNotifier {
     } catch (_) {
       _subjects = []; // lỗi môn học không làm hỏng danh sách deadline
     }
+  }
+
+  void _indexTasksByDay() {
+    _tasksByDay = TaskService.groupByDay(_tasks);
+    _markedDays = Set.unmodifiable(_tasksByDay.keys);
+    _overdueDays = Set.unmodifiable({
+      for (final task in _tasks)
+        if (task.isOverdue()) TaskService.dayKey(task.taskDatetime),
+    });
   }
 
   /// Thêm mới ([existing] = null) hoặc cập nhật deadline.

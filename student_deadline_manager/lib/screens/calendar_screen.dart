@@ -74,47 +74,69 @@ class _CalendarScreenState extends State<CalendarScreen> {
           builder: (context, _) {
             final tasks = _c.selectedTasks;
             return RefreshIndicator(
-              onRefresh: _c.load,
-              child: ListView(
+              onRefresh: () => _c.load(forceRefresh: true),
+              child: CustomScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(16, 24, 16, 96),
-                children: [
-                  const Text(
-                    'Lịch',
-                    style: TextStyle(fontSize: 32, fontWeight: FontWeight.w900),
-                  ),
-                  const SizedBox(height: 16),
-                  if (_c.loading) const LinearProgressIndicator(),
-                  if (_c.error != null) _ErrorBox(message: _c.error!, onRetry: _c.load),
-                  MonthCalendar(
-                    month: _c.visibleMonth,
-                    selected: _c.selectedDay,
-                    markedDays: _c.markedDays,
-                    overdueDays: _c.overdueDays,
-                    onSelect: _c.selectDay,
-                    onPrev: () => _c.changeMonth(-1),
-                    onNext: () => _c.changeMonth(1),
-                  ),
-                  const SizedBox(height: 20),
-                  Text(
-                    'Deadline ngày ${formatDayMonth(_c.selectedDay)}',
-                    style: const TextStyle(
-                        fontSize: 22, fontWeight: FontWeight.w800),
-                  ),
-                  const SizedBox(height: 12),
-                  if (tasks.isEmpty && !_c.loading)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 24),
-                      child: Center(child: Text('Không có deadline')),
+                slivers: [
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(16, 24, 16, 0),
+                    sliver: SliverToBoxAdapter(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Lịch',
+                            style: TextStyle(
+                                fontSize: 32, fontWeight: FontWeight.w900),
+                          ),
+                          const SizedBox(height: 16),
+                          if (_c.loading) const LinearProgressIndicator(),
+                          if (_c.error != null)
+                            _ErrorBox(message: _c.error!, onRetry: _c.load),
+                          MonthCalendar(
+                            month: _c.visibleMonth,
+                            selected: _c.selectedDay,
+                            markedDays: _c.markedDays,
+                            overdueDays: _c.overdueDays,
+                            onSelect: _c.selectDay,
+                            onPrev: () => _c.changeMonth(-1),
+                            onNext: () => _c.changeMonth(1),
+                          ),
+                          const SizedBox(height: 20),
+                          Text(
+                            'Deadline ngày ${formatDayMonth(_c.selectedDay)}',
+                            style: const TextStyle(
+                                fontSize: 22, fontWeight: FontWeight.w800),
+                          ),
+                          const SizedBox(height: 12),
+                          if (tasks.isEmpty && !_c.loading)
+                            const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 24),
+                              child: Center(child: Text('Không có deadline')),
+                            ),
+                        ],
+                      ),
                     ),
-                  for (final t in tasks)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: TaskCard(
-                        task: t,
-                        subjectName: _c.subjectName(t.subjectId),
-                        onTap: () => _openForm(task: t),
-                        onComplete: () => _complete(t),
+                  ),
+                  if (tasks.isEmpty)
+                    const SliverToBoxAdapter(child: SizedBox(height: 96))
+                  else
+                    SliverPadding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 96),
+                      sliver: SliverList.builder(
+                        itemCount: tasks.length,
+                        itemBuilder: (context, index) {
+                          final task = tasks[index];
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: TaskCard(
+                              task: task,
+                              subjectName: _c.subjectName(task.subjectId),
+                              onTap: () => _openForm(task: task),
+                              onComplete: () => _complete(task),
+                            ),
+                          );
+                        },
                       ),
                     ),
                 ],

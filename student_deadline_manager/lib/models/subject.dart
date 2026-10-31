@@ -1,30 +1,56 @@
 import 'project_entity.dart';
 
-class MonHoc extends ProjectEntity<String> {
-  final String giangVien;
-  final int soTinChi;
-  final bool daLuuTru;
+/// Môn học thuộc tài khoản Firebase hiện tại.
+///
+/// `teacher` và `credits` được giữ để tương thích với dữ liệu/chức năng cũ;
+/// các trường chính dùng tên đơn giản như trong schema mới.
+class Subject extends ProjectEntity<String> {
+  final String userId;
+  final String color;
+  final String icon;
+  final String teacher;
+  final int credits;
 
-  const MonHoc({
-    required String maMonHoc,
-    required String tenMonHoc,
-    required this.giangVien,
-    required this.soTinChi,
-    this.daLuuTru = false,
-  }) : super(id: maMonHoc, ten: tenMonHoc);
+  const Subject({
+    required super.id,
+    required this.userId,
+    required String name,
+    this.color = 'violet',
+    this.icon = 'book',
+    this.teacher = '',
+    this.credits = 0,
+  }) : super(ten: name);
 
-  String get maMonHoc => id;
-  String get tenMonHoc => ten;
+  String get name => ten;
+
+  factory Subject.fromMap(
+    String id,
+    String ownerId,
+    Map<String, dynamic> data,
+  ) => Subject(
+    id: id,
+    userId: (data['userId'] as String?) ?? ownerId,
+    name: (data['name'] as String?) ?? (data['tenMonHoc'] as String?) ?? '',
+    color: (data['color'] as String?) ?? 'violet',
+    icon: (data['icon'] as String?) ?? 'book',
+    teacher:
+        (data['teacher'] as String?) ?? (data['giangVien'] as String?) ?? '',
+    credits: ((data['credits'] ?? data['soTinChi']) as num?)?.toInt() ?? 0,
+  );
 
   @override
   Map<String, Object?> toMap() => {
-        'maMonHoc': maMonHoc,
-        'tenMonHoc': tenMonHoc,
-        'giangVien': giangVien,
-        'soTinChi': soTinChi,
-      };
+    'userId': userId,
+    'name': name,
+    'color': color,
+    'icon': icon,
+    'teacher': teacher,
+    'credits': credits,
+  };
 
-  String getThongTinMonHoc() {
-    return 'Môn $tenMonHoc ($maMonHoc) do giảng viên $giangVien giảng dạy, tổng $soTinChi tín chỉ.';
-  }
+  String getThongTinMonHoc() => 'Môn $name ($id).';
 }
+
+/// Compatibility alias while the remaining modules migrate from Vietnamese
+/// type naming to `Subject`.
+typedef MonHoc = Subject;

@@ -49,11 +49,33 @@ class TaskRepository {
         return map == null ? null : Task.fromMap(doc.id, map);
       }, 'Đọc');
 
-  /// Tất cả Task của một user.
-  Future<List<Task>> getByUser(String userId) => _guard(() async {
+  /// Tất cả Task của một user, sắp xếp theo thời hạn.
+  ///
+  /// Nếu composite index chưa được triển khai, truy vấn có orderBy sẽ trả về
+  /// failed-precondition. Tạm đọc theo user rồi sắp xếp ở client để màn hình
+  /// vẫn dùng được; sau khi triển khai index, đường truy vấn nhanh được dùng lại.
+  Future<List<Task>> getByUser(String userId) async {
+    try {
+      final snap = await _col
+          .where('userId', isEqualTo: userId)
+          .orderBy('taskDatetime')
+          .get();
+      return snap.docs.map((d) => Task.fromMap(d.id, d.data())).toList();
+    } on FirebaseException catch (e) {
+      if (e.code != 'failed-precondition') {
+        throw TaskRepositoryException('Đọc danh sách thất bại: ${e.code}');
+      }
+
+      return _guard(() async {
         final snap = await _col.where('userId', isEqualTo: userId).get();
-        return snap.docs.map((d) => Task.fromMap(d.id, d.data())).toList();
+        final tasks = snap.docs.map((d) => Task.fromMap(d.id, d.data())).toList()
+          ..sort((a, b) => a.taskDatetime.compareTo(b.taskDatetime));
+        return tasks;
       }, 'Đọc danh sách');
+    } catch (e) {
+      throw TaskRepositoryException('Đọc danh sách thất bại: $e');
+    }
+  }
 
   /// Tự cập nhật khi dữ liệu đổi (dùng với StreamBuilder nếu cần).
   Stream<List<Task>> watchByUser(String userId) => _col

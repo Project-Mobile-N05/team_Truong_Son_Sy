@@ -3,17 +3,15 @@ part of '../subject_screen.dart';
 class _SubjectSearchScreen extends StatefulWidget {
   final List<MonHoc> danhSachMonHoc;
   final String tuKhoaBanDau;
-  final bool? trangThaiBanDau;
   final int? tinChiBanDau;
-  final String? giangVienBanDau;
+  final String? teacherBanDau;
   final Future<MonHoc?> Function(MonHoc) onEdit;
 
   const _SubjectSearchScreen({
     required this.danhSachMonHoc,
     required this.tuKhoaBanDau,
-    required this.trangThaiBanDau,
     required this.tinChiBanDau,
-    required this.giangVienBanDau,
+    required this.teacherBanDau,
     required this.onEdit,
   });
 
@@ -24,21 +22,18 @@ class _SubjectSearchScreen extends StatefulWidget {
 class _SubjectSearchScreenState extends State<_SubjectSearchScreen> {
   late final TextEditingController _searchController;
   late List<MonHoc> _subjects;
-  bool? _archived;
   int? _credits;
   String? _teacher;
 
   int get _activeFilterCount =>
-      (_archived != null ? 1 : 0) +
-      (_credits != null ? 1 : 0) +
-      (_teacher != null ? 1 : 0);
+      (_credits != null ? 1 : 0) + (_teacher != null ? 1 : 0);
 
   List<int> get _creditOptions =>
-      _subjects.map((subject) => subject.soTinChi).toSet().toList()..sort();
+      _subjects.map((subject) => subject.credits).toSet().toList()..sort();
 
   List<String> get _teacherOptions =>
       _subjects
-          .map((subject) => subject.giangVien.trim())
+          .map((subject) => subject.teacher.trim())
           .where((teacher) => teacher.isNotEmpty)
           .toSet()
           .toList()
@@ -49,13 +44,12 @@ class _SubjectSearchScreenState extends State<_SubjectSearchScreen> {
     return _subjects.where((subject) {
       final matchesKeyword =
           keyword.isEmpty ||
-          subject.maMonHoc.toLowerCase().contains(keyword) ||
-          subject.tenMonHoc.toLowerCase().contains(keyword) ||
-          subject.giangVien.toLowerCase().contains(keyword);
+          subject.id.toLowerCase().contains(keyword) ||
+          subject.name.toLowerCase().contains(keyword) ||
+          subject.teacher.toLowerCase().contains(keyword);
       return matchesKeyword &&
-          (_archived == null || subject.daLuuTru == _archived) &&
-          (_credits == null || subject.soTinChi == _credits) &&
-          (_teacher == null || subject.giangVien.trim() == _teacher);
+          (_credits == null || subject.credits == _credits) &&
+          (_teacher == null || subject.teacher.trim() == _teacher);
     }).toList();
   }
 
@@ -64,9 +58,8 @@ class _SubjectSearchScreenState extends State<_SubjectSearchScreen> {
     super.initState();
     _searchController = TextEditingController(text: widget.tuKhoaBanDau);
     _subjects = List<MonHoc>.of(widget.danhSachMonHoc);
-    _archived = widget.trangThaiBanDau;
     _credits = widget.tinChiBanDau;
-    _teacher = widget.giangVienBanDau;
+    _teacher = widget.teacherBanDau;
   }
 
   @override
@@ -77,7 +70,6 @@ class _SubjectSearchScreenState extends State<_SubjectSearchScreen> {
 
   void _resetFilters() {
     setState(() {
-      _archived = null;
       _credits = null;
       _teacher = null;
     });
@@ -88,40 +80,8 @@ class _SubjectSearchScreenState extends State<_SubjectSearchScreen> {
       context,
       _SubjectSearchFilters(
         query: _searchController.text,
-        archived: _archived,
         credits: _credits,
         teacher: _teacher,
-      ),
-    );
-  }
-
-  Widget _statusOption(String label, bool? value) {
-    final selected = _archived == value;
-    return Expanded(
-      child: InkWell(
-        borderRadius: BorderRadius.circular(10),
-        onTap: () => setState(() => _archived = value),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 3),
-          decoration: BoxDecoration(
-            color: selected ? _primary : Colors.white,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(
-              color: selected ? _primary : const Color(0xFFE5E7F0),
-            ),
-          ),
-          alignment: Alignment.center,
-          child: Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: selected ? Colors.white : const Color(0xFF686C81),
-            ),
-          ),
-        ),
       ),
     );
   }
@@ -206,7 +166,7 @@ class _SubjectSearchScreenState extends State<_SubjectSearchScreen> {
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(
-                        subject.maMonHoc,
+                        subject.id,
                         style: const TextStyle(
                           color: _primary,
                           fontSize: 10,
@@ -215,7 +175,7 @@ class _SubjectSearchScreenState extends State<_SubjectSearchScreen> {
                       ),
                     ),
                     Text(
-                      '${subject.soTinChi} tín chỉ',
+                      '${subject.credits} tín chỉ',
                       style: const TextStyle(
                         color: Color(0xFF777B8F),
                         fontSize: 11,
@@ -225,7 +185,7 @@ class _SubjectSearchScreenState extends State<_SubjectSearchScreen> {
                 ),
                 const SizedBox(height: 5),
                 Text(
-                  subject.tenMonHoc,
+                  subject.name,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
@@ -236,7 +196,7 @@ class _SubjectSearchScreenState extends State<_SubjectSearchScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'GV: ${subject.giangVien}',
+                  'GV: ${subject.teacher}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
@@ -257,7 +217,7 @@ class _SubjectSearchScreenState extends State<_SubjectSearchScreen> {
                   if (updated == null || !mounted) return;
                   setState(() {
                     final index = _subjects.indexWhere(
-                      (item) => item.maMonHoc == updated.maMonHoc,
+                      (item) => item.id == updated.id,
                     );
                     if (index >= 0) _subjects[index] = updated;
                   });
@@ -366,25 +326,6 @@ class _SubjectSearchScreenState extends State<_SubjectSearchScreen> {
                   ],
                 ),
                 const SizedBox(height: 12),
-                const Text(
-                  'Trạng thái',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF686C81),
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Row(
-                  children: [
-                    _statusOption('Tất cả', null),
-                    const SizedBox(width: 5),
-                    _statusOption('Đang theo dõi', false),
-                    const SizedBox(width: 5),
-                    _statusOption('Đã lưu trữ', true),
-                  ],
-                ),
-                const SizedBox(height: 12),
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -477,11 +418,6 @@ class _SubjectSearchScreenState extends State<_SubjectSearchScreen> {
               spacing: 7,
               runSpacing: 7,
               children: [
-                if (_archived != null)
-                  _filterChip(
-                    _archived! ? 'Đã lưu trữ' : 'Đang theo dõi',
-                    () => setState(() => _archived = null),
-                  ),
                 if (_credits != null)
                   _filterChip(
                     '$_credits tín chỉ',

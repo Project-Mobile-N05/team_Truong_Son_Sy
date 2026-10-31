@@ -51,7 +51,7 @@ extension _SubjectForm on _SubjectScreenState {
                 children: [
                   Expanded(
                     child: TextFormField(
-                      controller: _maMonHocController,
+                      controller: _idController,
                       decoration: _oNhap('Mã môn *'),
                       validator: (value) {
                         if (value == null || value.trim().isEmpty) {
@@ -64,7 +64,7 @@ extension _SubjectForm on _SubjectScreenState {
                   const SizedBox(width: 8),
                   Expanded(
                     child: TextFormField(
-                      controller: _soTinChiController,
+                      controller: _creditsController,
                       keyboardType: TextInputType.number,
                       decoration: _oNhap('Tín chỉ *'),
                       validator: (value) {
@@ -82,7 +82,7 @@ extension _SubjectForm on _SubjectScreenState {
               const SizedBox(height: 10),
 
               TextFormField(
-                controller: _tenMonHocController,
+                controller: _nameController,
                 decoration: _oNhap('Tên môn học *'),
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
@@ -95,11 +95,19 @@ extension _SubjectForm on _SubjectScreenState {
               const SizedBox(height: 10),
 
               TextFormField(
-                controller: _giangVienController,
+                controller: _teacherController,
                 decoration: _oNhap('Giảng viên'),
               ),
 
-              const SizedBox(height: 14),
+              const SizedBox(height: 16),
+              SubjectAppearancePicker(
+                colorKey: _colorKey,
+                iconKey: _iconKey,
+                onColorChanged: _chonMauMonHoc,
+                onIconChanged: _chonIconMonHoc,
+              ),
+
+              const SizedBox(height: 18),
 
               Row(
                 children: [
@@ -109,10 +117,11 @@ extension _SubjectForm on _SubjectScreenState {
                           ? null
                           : () {
                               _formKey.currentState?.reset();
-                              _maMonHocController.clear();
-                              _tenMonHocController.clear();
-                              _giangVienController.clear();
-                              _soTinChiController.clear();
+                              _idController.clear();
+                              _nameController.clear();
+                              _teacherController.clear();
+                              _creditsController.clear();
+                              _datLaiBieuTuongMonHoc();
                             },
                       style: OutlinedButton.styleFrom(
                         foregroundColor: const Color(0xFF5F637C),

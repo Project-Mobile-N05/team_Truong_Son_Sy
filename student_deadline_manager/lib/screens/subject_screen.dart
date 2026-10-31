@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../models/subject.dart';
+import '../models/subject_appearance.dart';
 import '../models/task_status.dart';
 import '../services/auth_service.dart';
 import '../services/subject_service.dart';
@@ -8,7 +11,7 @@ import '../services/task_service.dart';
 import '../controllers/subject_controller.dart';
 import 'statistics_screen.dart';
 import 'subject/widgets/subject_card.dart';
-import 'subject/widgets/subject_tab_button.dart';
+import '../widgets/subject_appearance_picker.dart';
 
 part 'subject/subject_search_screen.dart';
 part 'subject/subject_edit_dialog.dart';
@@ -19,13 +22,11 @@ const _background = Color(0xFFF7F8FC);
 
 class _SubjectSearchFilters {
   final String query;
-  final bool? archived;
   final int? credits;
   final String? teacher;
 
   const _SubjectSearchFilters({
     required this.query,
-    required this.archived,
     required this.credits,
     required this.teacher,
   });
@@ -41,10 +42,10 @@ class SubjectScreen extends StatefulWidget {
 class _SubjectScreenState extends State<SubjectScreen> {
   final _formKey = GlobalKey<FormState>();
 
-  final _maMonHocController = TextEditingController();
-  final _tenMonHocController = TextEditingController();
-  final _giangVienController = TextEditingController();
-  final _soTinChiController = TextEditingController();
+  final _idController = TextEditingController();
+  final _nameController = TextEditingController();
+  final _teacherController = TextEditingController();
+  final _creditsController = TextEditingController();
   final _timKiemController = TextEditingController();
 
   final SubjectController _controller = SubjectController(SubjectService());
@@ -53,12 +54,11 @@ class _SubjectScreenState extends State<SubjectScreen> {
   bool get _dangTai => _controller.isLoading;
   bool get _dangLuu => _controller.isSaving;
   bool _moForm = true;
-  bool _hienThiLuuTru = false;
-  bool _locTatCaTrangThai = false;
   bool _dangTaiDeadline = true;
+  String _colorKey = 'violet';
+  String _iconKey = 'book';
   int? _locTinChi;
   String? _locGiangVien;
-  final Set<String> _dangCapNhatLuuTru = {};
   Map<String, int> _soDeadlineTheoMon = {};
 
   List<MonHoc> get _danhSachMonHoc => _controller.danhSachMonHoc;
@@ -67,10 +67,8 @@ class _SubjectScreenState extends State<SubjectScreen> {
       .timKiem(_timKiemController.text)
       .where(
         (monHoc) =>
-            (_locTatCaTrangThai || monHoc.daLuuTru == _hienThiLuuTru) &&
-            (_locTinChi == null || monHoc.soTinChi == _locTinChi) &&
-            (_locGiangVien == null || monHoc.giangVien == _locGiangVien) &&
-            !_dangCapNhatLuuTru.contains(monHoc.maMonHoc),
+            (_locTinChi == null || monHoc.credits == _locTinChi) &&
+            (_locGiangVien == null || monHoc.teacher == _locGiangVien),
       )
       .toList();
 
@@ -78,12 +76,26 @@ class _SubjectScreenState extends State<SubjectScreen> {
   void initState() {
     super.initState();
     _controller.addListener(_capNhatGiaoDien);
+    TaskService.taskChanges.addListener(_onTaskChanges);
     _layDanhSach();
+  }
+
+  void _onTaskChanges() {
+    if (mounted) unawaited(_laySoDeadline());
   }
 
   void _capNhatGiaoDien() {
     if (mounted) setState(() {});
   }
+
+  void _chonMauMonHoc(String value) => setState(() => _colorKey = value);
+
+  void _chonIconMonHoc(String value) => setState(() => _iconKey = value);
+
+  void _datLaiBieuTuongMonHoc() => setState(() {
+    _colorKey = 'violet';
+    _iconKey = 'book';
+  });
 
   void _thongBao(String message) {
     ScaffoldMessenger.of(context)
@@ -94,12 +106,11 @@ class _SubjectScreenState extends State<SubjectScreen> {
   // Đọc dữ liệu từ Firebase qua Controller
   Future<void> _layDanhSach() async {
     try {
-      await _controller.layDanhSach();
+      await Future.wait([_controller.layDanhSach(), _laySoDeadline()]);
     } catch (e) {
       if (!mounted) return;
       _thongBao('Lỗi tải môn học: $e');
     }
-    await _laySoDeadline();
   }
 
   Future<void> _laySoDeadline() async {
@@ -145,20 +156,27 @@ class _SubjectScreenState extends State<SubjectScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     final monHoc = MonHoc(
-      maMonHoc: _maMonHocController.text.trim(),
-      tenMonHoc: _tenMonHocController.text.trim(),
-      giangVien: _giangVienController.text.trim(),
-      soTinChi: int.parse(_soTinChiController.text.trim()),
+      id: _idController.text.trim(),
+      userId: AuthService().currentUid ?? '',
+      name: _nameController.text.trim(),
+      color: _colorKey,
+      icon: _iconKey,
+      teacher: _teacherController.text.trim(),
+      credits: int.parse(_creditsController.text.trim()),
     );
 
     try {
       await _controller.themMonHoc(monHoc);
       if (!mounted) return;
 
-      _maMonHocController.clear();
-      _tenMonHocController.clear();
-      _giangVienController.clear();
-      _soTinChiController.clear();
+      _idController.clear();
+      _nameController.clear();
+      _teacherController.clear();
+      _creditsController.clear();
+      setState(() {
+        _colorKey = 'violet';
+        _iconKey = 'book';
+      });
 
       _thongBao('Thêm môn học thành công');
     } catch (e) {
@@ -176,13 +194,10 @@ class _SubjectScreenState extends State<SubjectScreen> {
       context,
       MaterialPageRoute(
         builder: (_) => _SubjectSearchScreen(
-          danhSachMonHoc: _danhSachMonHoc
-              .where((monHoc) => !_dangCapNhatLuuTru.contains(monHoc.maMonHoc))
-              .toList(),
+          danhSachMonHoc: _danhSachMonHoc,
           tuKhoaBanDau: _timKiemController.text,
-          trangThaiBanDau: _locTatCaTrangThai ? null : _hienThiLuuTru,
           tinChiBanDau: _locTinChi,
-          giangVienBanDau: _locGiangVien,
+          teacherBanDau: _locGiangVien,
           onEdit: _suaMonHoc,
         ),
       ),
@@ -190,10 +205,6 @@ class _SubjectScreenState extends State<SubjectScreen> {
     if (filters == null || !mounted) return;
     setState(() {
       _timKiemController.text = filters.query;
-      _locTatCaTrangThai = filters.archived == null;
-      if (filters.archived != null) {
-        _hienThiLuuTru = filters.archived!;
-      }
       _locTinChi = filters.credits;
       _locGiangVien = filters.teacher;
     });
@@ -207,7 +218,7 @@ class _SubjectScreenState extends State<SubjectScreen> {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Xóa môn học'),
-        content: Text('Bạn có chắc muốn xóa ${monHoc.tenMonHoc}?'),
+        content: Text('Bạn có chắc muốn xóa ${monHoc.name}?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
@@ -224,30 +235,12 @@ class _SubjectScreenState extends State<SubjectScreen> {
     if (xacNhan != true || !mounted) return;
 
     try {
-      await _controller.xoaMonHoc(monHoc.maMonHoc);
+      await _controller.xoaMonHoc(monHoc.id);
       if (!mounted) return;
       _thongBao('Xóa môn học thành công');
     } catch (e) {
       if (!mounted) return;
       _thongBao('Lỗi xóa môn học: $e');
-    }
-  }
-
-  Future<void> _doiLuuTru(MonHoc monHoc, bool daLuuTru) async {
-    _dangCapNhatLuuTru.add(monHoc.maMonHoc);
-    setState(() {});
-    try {
-      await _controller.capNhatLuuTru(monHoc.maMonHoc, daLuuTru);
-      if (!mounted) return;
-      _dangCapNhatLuuTru.remove(monHoc.maMonHoc);
-      setState(() {});
-      _thongBao(daLuuTru ? 'Đã lưu trữ môn học' : 'Đã khôi phục môn học');
-    } catch (e) {
-      if (!mounted) return;
-      _dangCapNhatLuuTru.remove(monHoc.maMonHoc);
-      setState(() {});
-      _thongBao('Lỗi cập nhật lưu trữ môn học: $e');
-      await _layDanhSach();
     }
   }
 
@@ -278,11 +271,12 @@ class _SubjectScreenState extends State<SubjectScreen> {
   @override
   void dispose() {
     _controller.removeListener(_capNhatGiaoDien);
+    TaskService.taskChanges.removeListener(_onTaskChanges);
     _controller.dispose();
-    _maMonHocController.dispose();
-    _tenMonHocController.dispose();
-    _giangVienController.dispose();
-    _soTinChiController.dispose();
+    _idController.dispose();
+    _nameController.dispose();
+    _teacherController.dispose();
+    _creditsController.dispose();
     _timKiemController.dispose();
     super.dispose();
   }
@@ -385,46 +379,11 @@ class _SubjectScreenState extends State<SubjectScreen> {
 
             const SizedBox(height: 16),
 
-            Container(
-              decoration: BoxDecoration(
-                color: const Color(0xFFEAEAF5),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              padding: const EdgeInsets.all(4),
-              child: Row(
-                children: [
-                  SubjectTabButton(
-                    label: 'Đang học',
-                    selected: !_hienThiLuuTru && !_locTatCaTrangThai,
-                    onTap: () => setState(() {
-                      _hienThiLuuTru = false;
-                      _locTatCaTrangThai = false;
-                    }),
-                  ),
-                  const SizedBox(width: 4),
-                  SubjectTabButton(
-                    label: 'Đã lưu trữ',
-                    selected: _hienThiLuuTru && !_locTatCaTrangThai,
-                    onTap: () => setState(() {
-                      _hienThiLuuTru = true;
-                      _locTatCaTrangThai = false;
-                    }),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 16),
-
             Row(
               children: [
                 Expanded(
                   child: Text(
-                    _locTatCaTrangThai
-                        ? 'Tất cả môn học'
-                        : _hienThiLuuTru
-                        ? 'Môn học đã lưu trữ'
-                        : 'Môn học đang theo dõi',
+                    'Danh sách môn học',
                     style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
@@ -466,9 +425,7 @@ class _SubjectScreenState extends State<SubjectScreen> {
               Padding(
                 padding: EdgeInsets.all(24),
                 child: Text(
-                  _hienThiLuuTru
-                      ? 'Chưa có môn học nào được lưu trữ.'
-                      : 'Không có môn học phù hợp.',
+                  'Không có môn học phù hợp.',
                   textAlign: TextAlign.center,
                 ),
               )
@@ -478,44 +435,15 @@ class _SubjectScreenState extends State<SubjectScreen> {
                   monHoc: monHoc,
                   isSaving: _dangLuu,
                   isLoadingDeadlines: _dangTaiDeadline,
-                  deadlineCount: _soDeadlineTheoMon[monHoc.maMonHoc] ?? 0,
+                  deadlineCount: _soDeadlineTheoMon[monHoc.id] ?? 0,
                   onEdit: (monHoc) async {
                     await _suaMonHoc(monHoc);
                   },
                   onDelete: _xoaMonHoc,
-                  onArchive: _doiLuuTru,
                 ),
               ),
 
             const SizedBox(height: 12),
-
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF1F2F7),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.archive_outlined,
-                    color: Color(0xFF5F6274),
-                    size: 18,
-                  ),
-                  SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      _hienThiLuuTru
-                          ? 'Vuốt sang phải để khôi phục môn học'
-                          : 'Vuốt sang trái môn học để lưu trữ',
-                      style: TextStyle(fontSize: 13, color: Color(0xFF5F6274)),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 16),
 
             _formThemMon(),
           ],

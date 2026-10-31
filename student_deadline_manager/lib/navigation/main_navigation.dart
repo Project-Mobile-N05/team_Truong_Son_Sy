@@ -9,6 +9,7 @@ import '../screens/subject_screen.dart';
 import '../screens/task_form_screen.dart';
 import '../services/subject_options.dart';
 import '../services/subject_service.dart';
+import '../services/notification_scheduler.dart';
 
 /// Một tab của thanh điều hướng dưới.
 class AppTab {
@@ -42,6 +43,21 @@ class MainNavigation extends StatefulWidget {
 
 class _MainNavigationState extends State<MainNavigation> {
   int _selectedIndex = 0;
+  final Set<int> _visitedTabs = {0};
+  final Map<int, int> _epoch = {};
+  final NotificationScheduler _scheduler = NotificationScheduler();
+
+  @override
+  void initState() {
+    super.initState();
+    _scheduler.start(); // quét mỗi 1 giờ, gửi mỗi 5 phút khi đã đăng nhập
+  }
+
+  @override
+  void dispose() {
+    _scheduler.stop();
+    super.dispose();
+  }
 
   late final List<AppTab> _tabs = [
     AppTab(
@@ -91,7 +107,7 @@ class _MainNavigationState extends State<MainNavigation> {
   void _open(String key) {
     final i = _tabs.indexWhere((t) => t.key == key);
     if (i >= 0) {
-      setState(() => _selectedIndex = i);
+      _selectTab(i);
       return;
     }
     final push = _pushes[key];
@@ -100,6 +116,15 @@ class _MainNavigationState extends State<MainNavigation> {
     } else {
       _toast('Chức năng này đang được phát triển');
     }
+  }
+
+  void _selectTab(int index) {
+    if (index == _selectedIndex && _visitedTabs.contains(index)) return;
+    setState(() {
+      _visitedTabs.add(index);
+      if (index != _selectedIndex) _epoch[index] = (_epoch[index] ?? 0) + 1;
+      _selectedIndex = index;
+    });
   }
 
   void _toast(String msg) =>
@@ -140,11 +165,19 @@ class _MainNavigationState extends State<MainNavigation> {
     return Scaffold(
       body: IndexedStack(
         index: _selectedIndex,
-        children: [for (final t in _tabs) t.screen],
+                children: [
+          for (var i = 0; i < _tabs.length; i++)
+            _visitedTabs.contains(i)
+                ? KeyedSubtree(
+                    key: ValueKey('${_tabs[i].key}-${_epoch[i] ?? 0}'),
+                    child: _tabs[i].screen,
+                  )
+                : const SizedBox.shrink(),
+        ],
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _selectedIndex,
-        onDestinationSelected: (i) => setState(() => _selectedIndex = i),
+        onDestinationSelected: _selectTab,
         backgroundColor: Colors.white,
         indicatorColor: const Color(0xFFE6E0F5),
         destinations: [

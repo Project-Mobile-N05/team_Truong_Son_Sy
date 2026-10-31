@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import '../models/account_data.dart';
+import '../models/student_code_data.dart';
 import 'firestore_repository.dart';
 
 class AuthException implements Exception {
@@ -12,14 +13,25 @@ class AuthException implements Exception {
 
 class AuthService {
   static final ValueNotifier<bool> busy = ValueNotifier<bool>(false);
+  static const Duration _profileCacheTtl = Duration(seconds: 30);
+  static final Map<String, ({AccountData profile, DateTime loadedAt})>
+  _profileCache = {};
+  static final Map<String, Future<AccountData>> _profileLoads = {};
 
   final FirebaseAuth _auth;
   final FirestoreRepository<AccountData> _users;
+  final FirestoreRepository<StudentCodeData> _codes;
 
-  AuthService({FirebaseAuth? auth, FirestoreRepository<AccountData>? users})
-      : _auth = auth ?? FirebaseAuth.instance,
+  AuthService({
+    FirebaseAuth? auth,
+    FirestoreRepository<AccountData>? users,
+    FirestoreRepository<StudentCodeData>? codes,
+  })  : _auth = auth ?? FirebaseAuth.instance,
         _users = users ??
-            FirestoreRepository<AccountData>('users', AccountData.fromMap);
+            FirestoreRepository<AccountData>('users', AccountData.fromMap),
+        _codes = codes ??
+            FirestoreRepository<StudentCodeData>(
+                'student_codes', StudentCodeData.fromMap);
 
   static final RegExp _emailRe = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
 
@@ -39,32 +51,47 @@ class AuthService {
   static String? validateRequired(String? v, String label) =>
       (v == null || v.trim().isEmpty) ? 'Vui lòng nhập $label' : null;
 
+  /// Mã sinh viên dùng làm id document nên chỉ cho chữ, số, gạch nối, gạch dưới.
+  static String? validateStudentCode(String? v) {
+    final s = (v ?? '').trim();
+    if (s.isEmpty) return 'Vui lòng nhập mã sinh viên';
+    if (!RegExp(r'^[A-Za-z0-9_-]+$').hasMatch(s)) {
+      return 'Mã sinh viên chỉ gồm chữ và số';
+    }
+    return null;
+  }
+
   String? get currentUid => _auth.currentUser?.uid;
 
   Future<AccountData> login(String email, String password) async {
-    final err = validateEmail(email) ??
+    final err =
+        validateEmail(email) ??
         (password.isEmpty ? 'Vui lòng nhập mật khẩu' : null);
     if (err != null) throw AuthException(err);
 
     busy.value = true;
+    late final UserCredential credential;
     try {
-      final cred = await _auth.signInWithEmailAndPassword(
-          email: email.trim(), password: password);
-      try {
-        final profile = await _users.getById(cred.user!.uid);
-        if (profile == null) {
-          await _auth.signOut();
-          throw const AuthException('Không tìm thấy hồ sơ tài khoản');
-        }
-        return profile;
-      } on RepositoryException catch (e) {
-        await _auth.signOut();
-        throw AuthException(e.message);
-      }
+      credential = await _auth.signInWithEmailAndPassword(
+        email: email.trim(),
+        password: password,
+      );
     } on FirebaseAuthException catch (e) {
       throw AuthException(_message(e.code));
     } finally {
+      // Cho AuthGate chuyển vào ứng dụng ngay khi Firebase xác thực xong.
       busy.value = false;
+    }
+
+    // Hồ sơ được tải song song với khởi tạo màn hình chính; HomeScreen và màn
+    // Tài khoản cùng dùng một request/cache thay vì phát sinh lượt đọc trùng.
+    final uid = credential.user!.uid;
+    try {
+      return await _loadProfile(uid);
+    } catch (_) {
+      _profileCache.remove(uid);
+      await _auth.signOut();
+      rethrow;
     }
   }
 
@@ -74,7 +101,7 @@ class AuthService {
     required String email,
     required String password,
   }) async {
-    final err = validateRequired(studentCode, 'mã sinh viên') ??
+    final err = validateStudentCode(studentCode) ??
         validateRequired(fullName, 'họ tên') ??
         validateEmail(email) ??
         validatePassword(password);
@@ -82,10 +109,22 @@ class AuthService {
 
     busy.value = true;
     try {
+      final code = studentCode.trim();
+
+      try {
+        if (await _codes.getById(code) != null) {
+          throw const AuthException('Mã sinh viên đã được đăng ký');
+        }
+      } on RepositoryException catch (e) {
+        throw AuthException(e.message);
+      }
+
       UserCredential cred;
       try {
         cred = await _auth.createUserWithEmailAndPassword(
-            email: email.trim(), password: password);
+          email: email.trim(),
+          password: password,
+        );
       } on FirebaseAuthException catch (e) {
         throw AuthException(_message(e.code));
       }
@@ -93,14 +132,19 @@ class AuthService {
       final user = cred.user!;
       final profile = AccountData(
         id: user.uid,
-        studentCode: studentCode.trim(),
+        studentCode: code,
         fullName: fullName.trim(),
         email: email.trim(),
       );
       try {
-        await _users.update(user.uid, profile); // set theo id = uid
+        await _codes.update(code, StudentCodeData(uid: user.uid));
+        await _users.update(user.uid, profile);
+        _cacheProfile(profile);
         return profile;
       } on RepositoryException catch (e) {
+        try {
+          await _codes.delete(code);
+        } catch (_) {}
         try {
           await user.delete();
         } catch (_) {}
@@ -111,15 +155,42 @@ class AuthService {
     }
   }
 
-  Future<void> logout() => _auth.signOut();
+  Future<void> logout() async {
+    final uid = currentUid;
+    if (uid != null) _profileCache.remove(uid);
+    await _auth.signOut();
+  }
 
   Future<AccountData> getProfile() async {
     final uid = currentUid;
     if (uid == null) throw const AuthException('Bạn chưa đăng nhập');
+    return _loadProfile(uid);
+  }
+
+  Future<AccountData> _loadProfile(String uid) {
+    final cached = _profileCache[uid];
+    if (cached != null &&
+        DateTime.now().difference(cached.loadedAt) < _profileCacheTtl) {
+      return Future.value(cached.profile);
+    }
+    final pending = _profileLoads[uid];
+    if (pending != null) return pending;
+
+    final request = _readProfile(uid);
+    _profileLoads[uid] = request;
+    return request.whenComplete(() {
+      if (identical(_profileLoads[uid], request)) _profileLoads.remove(uid);
+    });
+  }
+
+  Future<AccountData> _readProfile(String uid) async {
     try {
-      final p = await _users.getById(uid);
-      if (p == null) throw const AuthException('Không tìm thấy hồ sơ tài khoản');
-      return p;
+      final profile = await _users.getById(uid);
+      if (profile == null) {
+        throw const AuthException('Không tìm thấy hồ sơ tài khoản');
+      }
+      _cacheProfile(profile);
+      return profile;
     } on RepositoryException catch (e) {
       throw AuthException(e.message);
     }
@@ -132,9 +203,17 @@ class AuthService {
     final updated = current.copyWith(fullName: fullName.trim());
     try {
       await _users.update(current.id!, updated);
+      _cacheProfile(updated);
       return updated;
     } on RepositoryException catch (e) {
       throw AuthException(e.message);
+    }
+  }
+
+  static void _cacheProfile(AccountData profile) {
+    final uid = profile.id;
+    if (uid != null && uid.isNotEmpty) {
+      _profileCache[uid] = (profile: profile, loadedAt: DateTime.now());
     }
   }
 
@@ -150,7 +229,8 @@ class AuthService {
     if (err != null) throw AuthException(err);
     try {
       await user.reauthenticateWithCredential(
-          EmailAuthProvider.credential(email: user.email!, password: current));
+        EmailAuthProvider.credential(email: user.email!, password: current),
+      );
       await user.updatePassword(next);
     } on FirebaseAuthException catch (e) {
       throw AuthException(_message(e.code));

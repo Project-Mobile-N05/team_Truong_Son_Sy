@@ -54,8 +54,25 @@ class FirestoreRepository<T extends BaseEntity> {
       }, 'Đọc danh sách');
 
   /// Các Document có [field] == [value] (vd: userId của người đăng nhập).
-  Future<List<T>> findWhere(String field, Object value) => _guard(() async {
-        final snap = await _col.where(field, isEqualTo: value).get();
+  Future<List<T>> findWhere(
+    String field,
+    Object value, {
+    String? orderBy,
+  }) =>
+      findWhereAll({field: value}, orderBy: orderBy);
+
+  /// Query documents matching all supplied equality filters.
+  Future<List<T>> findWhereAll(
+    Map<String, Object> filters, {
+    String? orderBy,
+  }) =>
+      _guard(() async {
+        Query<Map<String, dynamic>> query = _col;
+        for (final entry in filters.entries) {
+          query = query.where(entry.key, isEqualTo: entry.value);
+        }
+        if (orderBy != null) query = query.orderBy(orderBy);
+        final snap = await query.get();
         return snap.docs.map((d) => _fromMap(d.id, d.data())).toList();
       }, 'Đọc danh sách');
 

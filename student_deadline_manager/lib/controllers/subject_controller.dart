@@ -1,4 +1,3 @@
-
 import 'package:flutter/foundation.dart';
 
 import '../models/project_entity.dart';
@@ -8,8 +7,7 @@ import '../services/subject_service.dart';
 class SubjectController extends ChangeNotifier {
   final SubjectService _service;
 
-  final ProjectCollection<MonHoc> _khoMonHoc =
-      ProjectCollection<MonHoc>();
+  final ProjectCollection<MonHoc> _khoMonHoc = ProjectCollection<MonHoc>();
 
   SubjectController(this._service);
 
@@ -25,9 +23,9 @@ class SubjectController extends ChangeNotifier {
     if (keyword.isEmpty) return danhSachMonHoc;
 
     return danhSachMonHoc.where((mon) {
-      return mon.maMonHoc.toLowerCase().contains(keyword) ||
-          mon.tenMonHoc.toLowerCase().contains(keyword) ||
-          mon.giangVien.toLowerCase().contains(keyword);
+      return mon.id.toLowerCase().contains(keyword) ||
+          mon.name.toLowerCase().contains(keyword) ||
+          mon.teacher.toLowerCase().contains(keyword);
     }).toList();
   }
 
@@ -42,7 +40,7 @@ class SubjectController extends ChangeNotifier {
       final danhSach = await _service.layDanhSach();
 
       for (final mon in List<MonHoc>.from(_khoMonHoc.items)) {
-        _khoMonHoc.removeById(mon.maMonHoc);
+        _khoMonHoc.removeById(mon.id);
       }
 
       for (final mon in danhSach) {
@@ -60,7 +58,7 @@ class SubjectController extends ChangeNotifier {
       throw StateError('Đang xử lý dữ liệu');
     }
 
-    if (_khoMonHoc.findById(monHoc.maMonHoc) != null) {
+    if (_khoMonHoc.findById(monHoc.id) != null) {
       throw StateError('Mã môn học đã tồn tại');
     }
 
@@ -88,7 +86,7 @@ class SubjectController extends ChangeNotifier {
     try {
       await _service.suaMonHoc(monHoc);
 
-      _khoMonHoc.removeById(monHoc.maMonHoc);
+      _khoMonHoc.removeById(monHoc.id);
       _khoMonHoc.add(monHoc);
     } finally {
       isSaving = false;
@@ -96,37 +94,8 @@ class SubjectController extends ChangeNotifier {
     }
   }
 
-  Future<void> capNhatLuuTru(String maMonHoc, bool daLuuTru) async {
-    if (isSaving || isLoading) {
-      throw StateError('Đang xử lý dữ liệu');
-    }
-
-    final monHoc = _khoMonHoc.findById(maMonHoc);
-    if (monHoc == null || monHoc.daLuuTru == daLuuTru) return;
-
-    isSaving = true;
-    notifyListeners();
-
-    try {
-      await _service.capNhatLuuTru(maMonHoc, daLuuTru);
-      _khoMonHoc.removeById(maMonHoc);
-      _khoMonHoc.add(
-        MonHoc(
-          maMonHoc: monHoc.maMonHoc,
-          tenMonHoc: monHoc.tenMonHoc,
-          giangVien: monHoc.giangVien,
-          soTinChi: monHoc.soTinChi,
-          daLuuTru: daLuuTru,
-        ),
-      );
-    } finally {
-      isSaving = false;
-      notifyListeners();
-    }
-  }
-
   // Xóa môn học
-  Future<void> xoaMonHoc(String maMonHoc) async {
+  Future<void> xoaMonHoc(String id) async {
     if (isSaving || isLoading) {
       throw StateError('Đang xử lý dữ liệu');
     }
@@ -135,8 +104,8 @@ class SubjectController extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await _service.xoaMonHoc(maMonHoc);
-      _khoMonHoc.removeById(maMonHoc);
+      await _service.xoaMonHoc(id);
+      _khoMonHoc.removeById(id);
     } finally {
       isSaving = false;
       notifyListeners();

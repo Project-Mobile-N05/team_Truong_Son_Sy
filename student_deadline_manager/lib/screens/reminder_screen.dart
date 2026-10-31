@@ -50,48 +50,66 @@ class _ReminderScreenState extends State<ReminderScreen> {
           listenable: _c,
           builder: (context, _) => RefreshIndicator(
             onRefresh: _c.load,
-            child: ListView(
+            child: CustomScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-              children: [
-                const ScreenHeader('Nhắc nhở'),
-                if (_c.loading) const LinearProgressIndicator(),
-                if (_c.error != null) _errorBox(_c.error!),
-                Row(
-                  children: [
-                    Expanded(
-                      child: PastelTile(
-                        title: '${_c.enabledCount}',
-                        subtitle: 'Đang bật',
-                        color: const Color(0xFFEAF9D6),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: PastelTile(
-                        title: '${_c.disabledCount}',
-                        subtitle: 'Đã tắt',
-                        color: const Color(0xFFFFF1D6),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                const Text('Nhắc nhở của bạn',
-                    style:
-                        TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
-                const SizedBox(height: 10),
-                if (_c.items.isEmpty && !_c.loading)
-                  const SoftCard(
-                    child: Text(
-                      'Chưa có nhắc nhở. Nhắc nhở được tạo tự động khi bạn thêm deadline.',
-                      style: TextStyle(fontSize: 14, color: Color(0xFF5F5A70)),
+              slivers: [
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                  sliver: SliverToBoxAdapter(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const ScreenHeader('Nhắc nhở'),
+                        if (_c.loading) const LinearProgressIndicator(),
+                        if (_c.error != null) _errorBox(_c.error!),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: PastelTile(
+                                title: '${_c.enabledCount}',
+                                subtitle: 'Đang bật',
+                                color: const Color(0xFFEAF9D6),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: PastelTile(
+                                title: '${_c.disabledCount}',
+                                subtitle: 'Đã tắt',
+                                color: const Color(0xFFFFF1D6),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 20),
+                        const Text('Nhắc nhở của bạn',
+                            style: TextStyle(
+                                fontSize: 20, fontWeight: FontWeight.w800)),
+                        const SizedBox(height: 10),
+                        if (_c.items.isEmpty && !_c.loading)
+                          const SoftCard(
+                            child: Text(
+                              'Chưa có nhắc nhở. Nhắc nhở được tạo tự động khi bạn thêm deadline.',
+                              style: TextStyle(
+                                  fontSize: 14, color: Color(0xFF5F5A70)),
+                            ),
+                          ),
+                      ],
                     ),
                   ),
-                for (final r in _c.items)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: _reminderCard(r),
+                ),
+                if (_c.items.isEmpty)
+                  const SliverToBoxAdapter(child: SizedBox(height: 16))
+                else
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                    sliver: SliverList.builder(
+                      itemCount: _c.items.length,
+                      itemBuilder: (context, index) => Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: _reminderCard(_c.items[index]),
+                      ),
+                    ),
                   ),
               ],
             ),

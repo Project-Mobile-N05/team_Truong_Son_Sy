@@ -196,7 +196,7 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
               ),
               const SizedBox(height: 8),
               DropdownButtonFormField<String?>(
-                value: subjectValue,
+                initialValue: subjectValue,
                 decoration: InputDecoration(
                   labelText: 'Môn học',
                   border: const OutlineInputBorder(),
@@ -213,7 +213,7 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<TaskType?>(
-                value: _type,
+                initialValue: _type,
                 decoration: const InputDecoration(
                   labelText: 'Loại',
                   border: OutlineInputBorder(),
@@ -275,7 +275,7 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
               if (_isEdit) ...[
                 const SizedBox(height: 16),
                 DropdownButtonFormField<TaskStatus>(
-                  value: _status,
+                  initialValue: _status,
                   decoration: const InputDecoration(
                     labelText: 'Trạng thái',
                     border: OutlineInputBorder(),
