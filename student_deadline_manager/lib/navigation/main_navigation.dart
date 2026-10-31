@@ -44,7 +44,6 @@ class MainNavigation extends StatefulWidget {
 class _MainNavigationState extends State<MainNavigation> {
   int _selectedIndex = 0;
   final Set<int> _visitedTabs = {0};
-  final Map<int, int> _epoch = {};
   final NotificationScheduler _scheduler = NotificationScheduler();
 
   @override
@@ -122,7 +121,6 @@ class _MainNavigationState extends State<MainNavigation> {
     if (index == _selectedIndex && _visitedTabs.contains(index)) return;
     setState(() {
       _visitedTabs.add(index);
-      if (index != _selectedIndex) _epoch[index] = (_epoch[index] ?? 0) + 1;
       _selectedIndex = index;
     });
   }
@@ -165,13 +163,10 @@ class _MainNavigationState extends State<MainNavigation> {
     return Scaffold(
       body: IndexedStack(
         index: _selectedIndex,
-                children: [
+        children: [
           for (var i = 0; i < _tabs.length; i++)
             _visitedTabs.contains(i)
-                ? KeyedSubtree(
-                    key: ValueKey('${_tabs[i].key}-${_epoch[i] ?? 0}'),
-                    child: _tabs[i].screen,
-                  )
+                ? _tabs[i].screen
                 : const SizedBox.shrink(),
         ],
       ),

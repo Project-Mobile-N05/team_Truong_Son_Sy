@@ -89,23 +89,25 @@ class TaskController extends ChangeNotifier {
   }
 
   /// Tải lại danh sách deadline và môn học.
-  Future<void> load({bool forceRefresh = false}) async {
+  Future<void> load({bool forceRefresh = false, bool silent = false}) async {
     final uid = _currentUid();
     if (uid == null) {
       _error = 'Bạn chưa đăng nhập';
       notifyListeners();
       return;
     }
-    _loading = true;
-    _error = null;
-    notifyListeners();
+    if (!silent) {
+      _loading = true;
+      _error = null;
+      notifyListeners();
+    }
     try {
-      final tasksFuture =
-          _service.findAll(uid, forceRefresh: forceRefresh);
+      final tasksFuture = _service.findAll(uid, forceRefresh: forceRefresh);
       final subjectsFuture = _loadSubjects(uid);
       _tasks = await tasksFuture;
       _indexTasksByDay();
       await subjectsFuture;
+      _error = null;
     } on TaskException catch (e) {
       _error = e.message;
     } catch (e) {

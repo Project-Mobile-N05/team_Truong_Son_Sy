@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import '../controllers/task_controller.dart';
 import '../models/task.dart';
 import '../services/subject_options.dart';
+import '../services/task_service.dart';
 import '../widgets/month_calendar.dart';
 import '../widgets/task_card.dart';
 import 'task_form_screen.dart';
@@ -29,11 +32,17 @@ class _CalendarScreenState extends State<CalendarScreen> {
     super.initState();
     _ownsController = widget.controller == null;
     _c = widget.controller ?? TaskController(subjectLoader: loadSubjectOptions);
+    TaskService.taskChanges.addListener(_onTaskChanges);
     _c.load();
+  }
+
+  void _onTaskChanges() {
+    if (mounted) unawaited(_c.load(silent: true));
   }
 
   @override
   void dispose() {
+    TaskService.taskChanges.removeListener(_onTaskChanges);
     if (_ownsController) _c.dispose();
     super.dispose();
   }

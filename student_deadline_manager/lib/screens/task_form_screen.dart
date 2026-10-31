@@ -6,6 +6,9 @@ import '../models/task_type.dart';
 import '../services/task_service.dart';
 import '../widgets/task_card.dart';
 
+const _formPrimary = Color(0xFF5147BD);
+const _formBackground = Color(0xFFF7F8FC);
+
 /// Màn hình thêm / sửa / xóa deadline.
 /// [task] = null là thêm mới, có giá trị là sửa (có thêm ô Trạng thái và nút Xóa).
 ///
@@ -85,18 +88,30 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
       firstDate: DateTime(2020),
       lastDate: DateTime(2100),
     );
-    if (picked != null) setState(() => _date = picked);
+    if (picked != null) {
+      setState(() {
+        _date = picked;
+        _dateError = null;
+      });
+    }
   }
 
   Future<void> _pickTime() async {
     final picked = await showTimePicker(context: context, initialTime: _time);
-    if (picked != null) setState(() => _time = picked);
+    if (picked != null) {
+      setState(() {
+        _time = picked;
+        _dateError = null;
+      });
+    }
   }
 
   Future<void> _save() async {
     final formOk = _formKey.currentState!.validate();
-    final dateErr =
-        TaskService.validateDateTime(_combined(), allowPast: _isEdit);
+    final dateErr = TaskService.validateDateTime(
+      _combined(),
+      allowPast: _isEdit,
+    );
     setState(() => _dateError = dateErr);
     if (!formOk || dateErr != null) return;
 
@@ -121,9 +136,11 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
       messenger.showSnackBar(SnackBar(content: Text(err)));
       return;
     }
-    messenger.showSnackBar(SnackBar(
-      content: Text(_isEdit ? 'Đã cập nhật deadline' : 'Đã thêm deadline'),
-    ));
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(_isEdit ? 'Đã cập nhật deadline' : 'Đã thêm deadline'),
+      ),
+    );
     Navigator.of(context).pop(true);
   }
 
@@ -135,11 +152,13 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
         content: Text('Bạn chắc chắn muốn xóa "${widget.task!.title}"?'),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Hủy')),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Hủy'),
+          ),
           FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Xóa')),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Xóa'),
+          ),
         ],
       ),
     );
@@ -163,11 +182,15 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
   Widget build(BuildContext context) {
     final subjects = widget.controller.subjects;
     // Tránh lỗi dropdown khi môn học đã bị xóa hoặc chưa tải được.
-    final subjectValue =
-        subjects.any((s) => s.id == _subjectId) ? _subjectId : null;
+    final subjectValue = subjects.any((s) => s.id == _subjectId)
+        ? _subjectId
+        : null;
 
     return Scaffold(
+      backgroundColor: _formBackground,
       appBar: AppBar(
+        backgroundColor: _formBackground,
+        surfaceTintColor: Colors.transparent,
         title: Text(_isEdit ? 'Sửa deadline' : 'Thêm deadline'),
         actions: [
           if (_isEdit)
@@ -178,133 +201,328 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
             ),
         ],
       ),
-      body: SafeArea(
-        child: Form(
-          key: _formKey,
-          child: ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              TextFormField(
-                controller: _title,
-                textInputAction: TextInputAction.next,
-                maxLength: 100,
-                decoration: const InputDecoration(
-                  labelText: 'Tiêu đề *',
-                  border: OutlineInputBorder(),
+      body: Form(
+        key: _formKey,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+          children: [
+            Container(
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [_formPrimary, Color(0xFF8177E8)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
                 ),
-                validator: TaskService.validateTitle,
+                borderRadius: BorderRadius.circular(22),
               ),
-              const SizedBox(height: 8),
-              DropdownButtonFormField<String?>(
-                initialValue: subjectValue,
-                decoration: InputDecoration(
-                  labelText: 'Môn học',
-                  border: const OutlineInputBorder(),
-                  helperText:
-                      subjects.isEmpty ? 'Chưa có môn học nào' : null,
-                ),
-                items: [
-                  const DropdownMenuItem<String?>(
-                      value: null, child: Text('Không chọn')),
-                  for (final s in subjects)
-                    DropdownMenuItem<String?>(value: s.id, child: Text(s.name)),
-                ],
-                onChanged: (v) => setState(() => _subjectId = v),
-              ),
-              const SizedBox(height: 16),
-              DropdownButtonFormField<TaskType?>(
-                initialValue: _type,
-                decoration: const InputDecoration(
-                  labelText: 'Loại',
-                  border: OutlineInputBorder(),
-                ),
-                items: [
-                  const DropdownMenuItem<TaskType?>(
-                      value: null, child: Text('Không chọn')),
-                  for (final t in TaskType.values)
-                    DropdownMenuItem<TaskType?>(value: t, child: Text(t.label)),
-                ],
-                onChanged: (v) => setState(() => _type = v),
-              ),
-              const SizedBox(height: 16),
-              Row(
+              child: Row(
                 children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: _pickDate,
-                      icon: const Icon(Icons.calendar_today_outlined),
-                      label: Text(formatDate(_date)),
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.18),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: const Icon(
+                      Icons.edit_calendar_rounded,
+                      color: Colors.white,
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 14),
                   Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: _pickTime,
-                      icon: const Icon(Icons.access_time),
-                      label: Text(
-                          '${_time.hour.toString().padLeft(2, '0')}:${_time.minute.toString().padLeft(2, '0')}'),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _isEdit
+                              ? 'Cập nhật kế hoạch'
+                              : 'Sẵn sàng lên kế hoạch?',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 17,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          _isEdit
+                              ? 'Chỉnh sửa thông tin deadline của bạn'
+                              : 'Thêm thông tin để không bỏ lỡ hạn nộp',
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.88),
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
               ),
-              if (_dateError != null)
-                Padding(
-                  padding: const EdgeInsets.only(top: 6, left: 12),
-                  child: Text(_dateError!,
-                      style: TextStyle(
-                          color: Theme.of(context).colorScheme.error,
-                          fontSize: 12)),
-                ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _room,
-                decoration: const InputDecoration(
-                  labelText: 'Phòng / địa điểm',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _notes,
-                maxLines: 3,
-                decoration: const InputDecoration(
-                  labelText: 'Ghi chú',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              if (_isEdit) ...[
-                const SizedBox(height: 16),
-                DropdownButtonFormField<TaskStatus>(
-                  initialValue: _status,
-                  decoration: const InputDecoration(
-                    labelText: 'Trạng thái',
-                    border: OutlineInputBorder(),
+            ),
+            const SizedBox(height: 24),
+            _sectionHeading('Thông tin deadline', 'Bắt đầu với tên bài tập'),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _title,
+              textInputAction: TextInputAction.next,
+              maxLength: 100,
+              decoration: _inputDecoration(
+                label: 'Tên deadline *',
+                hint: 'Ví dụ: Nộp bài tập Flutter',
+                icon: Icons.assignment_outlined,
+              ).copyWith(counterText: ''),
+              validator: TaskService.validateTitle,
+            ),
+            const SizedBox(height: 14),
+            DropdownButtonFormField<String?>(
+              initialValue: subjectValue,
+              decoration:
+                  _inputDecoration(
+                    label: 'Môn học',
+                    icon: Icons.menu_book_outlined,
+                  ).copyWith(
+                    helperText: subjects.isEmpty ? 'Chưa có môn học nào' : null,
                   ),
-                  items: [
-                    for (final s in const [
-                      TaskStatus.pending,
-                      TaskStatus.inProgress,
-                      TaskStatus.completed,
-                    ])
-                      DropdownMenuItem(value: s, child: Text(s.label)),
-                  ],
-                  onChanged: (v) => setState(() => _status = v ?? _status),
+              items: [
+                const DropdownMenuItem<String?>(
+                  value: null,
+                  child: Text('Không chọn'),
+                ),
+                for (final s in subjects)
+                  DropdownMenuItem<String?>(value: s.id, child: Text(s.name)),
+              ],
+              onChanged: (v) => setState(() => _subjectId = v),
+            ),
+            const SizedBox(height: 14),
+            DropdownButtonFormField<TaskType?>(
+              initialValue: _type,
+              decoration: _inputDecoration(
+                label: 'Loại bài tập',
+                icon: Icons.category_outlined,
+              ),
+              items: [
+                const DropdownMenuItem<TaskType?>(
+                  value: null,
+                  child: Text('Không chọn'),
+                ),
+                for (final t in TaskType.values)
+                  DropdownMenuItem<TaskType?>(value: t, child: Text(t.label)),
+              ],
+              onChanged: (v) => setState(() => _type = v),
+            ),
+            const SizedBox(height: 24),
+            _sectionHeading('Thời hạn', 'Chọn ngày và giờ cần hoàn thành'),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _dateTimeTile(
+                    icon: Icons.calendar_month_rounded,
+                    label: 'NGÀY NỘP',
+                    value: formatDate(_date),
+                    onTap: _pickDate,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _dateTimeTile(
+                    icon: Icons.schedule_rounded,
+                    label: 'GIỜ NỘP',
+                    value:
+                        '${_time.hour.toString().padLeft(2, '0')}:${_time.minute.toString().padLeft(2, '0')}',
+                    onTap: _pickTime,
+                  ),
                 ),
               ],
-              const SizedBox(height: 24),
-              FilledButton(
-                onPressed: _saving ? null : _save,
-                child: _saving
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Text('Lưu'),
+            ),
+            if (_dateError != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 8, left: 4),
+                child: Text(
+                  _dateError!,
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.error,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            const SizedBox(height: 24),
+            _sectionHeading('Thông tin bổ sung', 'Không bắt buộc'),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _room,
+              textInputAction: TextInputAction.next,
+              decoration: _inputDecoration(
+                label: 'Phòng / địa điểm',
+                hint: 'Ví dụ: Phòng A203',
+                icon: Icons.place_outlined,
+              ),
+            ),
+            const SizedBox(height: 14),
+            TextFormField(
+              controller: _notes,
+              maxLines: 3,
+              minLines: 3,
+              decoration: _inputDecoration(
+                label: 'Ghi chú',
+                hint: 'Thêm yêu cầu hoặc nội dung cần nhớ',
+                icon: Icons.notes_rounded,
+                alignIconTop: true,
+              ),
+            ),
+            if (_isEdit) ...[
+              const SizedBox(height: 14),
+              DropdownButtonFormField<TaskStatus>(
+                initialValue: _status,
+                decoration: _inputDecoration(
+                  label: 'Trạng thái',
+                  icon: Icons.flag_outlined,
+                ),
+                items: [
+                  for (final s in const [
+                    TaskStatus.pending,
+                    TaskStatus.inProgress,
+                    TaskStatus.completed,
+                  ])
+                    DropdownMenuItem(value: s, child: Text(s.label)),
+                ],
+                onChanged: (v) => setState(() => _status = v ?? _status),
               ),
             ],
+          ],
+        ),
+      ),
+      bottomNavigationBar: SafeArea(
+        minimum: const EdgeInsets.fromLTRB(16, 10, 16, 14),
+        child: FilledButton.icon(
+          onPressed: _saving ? null : _save,
+          style: FilledButton.styleFrom(
+            backgroundColor: _formPrimary,
+            minimumSize: const Size.fromHeight(54),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            textStyle: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          icon: _saving
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                )
+              : Icon(_isEdit ? Icons.save_rounded : Icons.add_rounded),
+          label: Text(
+            _saving
+                ? 'Đang lưu...'
+                : (_isEdit ? 'Lưu thay đổi' : 'Tạo deadline'),
           ),
         ),
       ),
     );
   }
+
+  Widget _sectionHeading(String title, String subtitle) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(
+        title,
+        style: const TextStyle(
+          color: Color(0xFF242638),
+          fontSize: 18,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+      const SizedBox(height: 3),
+      Text(
+        subtitle,
+        style: const TextStyle(color: Color(0xFF69708A), fontSize: 13),
+      ),
+    ],
+  );
+
+  InputDecoration _inputDecoration({
+    required String label,
+    required IconData icon,
+    String? hint,
+    bool alignIconTop = false,
+  }) => InputDecoration(
+    labelText: label,
+    hintText: hint,
+    prefixIcon: Icon(icon, color: _formPrimary),
+    prefixIconConstraints: alignIconTop
+        ? const BoxConstraints(minWidth: 48, minHeight: 52)
+        : null,
+    alignLabelWithHint: alignIconTop,
+    filled: true,
+    fillColor: Colors.white,
+    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(16),
+      borderSide: const BorderSide(color: Color(0xFFE5E7F0)),
+    ),
+    enabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(16),
+      borderSide: const BorderSide(color: Color(0xFFE5E7F0)),
+    ),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(16),
+      borderSide: const BorderSide(color: _formPrimary, width: 1.5),
+    ),
+  );
+
+  Widget _dateTimeTile({
+    required IconData icon,
+    required String label,
+    required String value,
+    required VoidCallback onTap,
+  }) => Material(
+    color: Colors.white,
+    borderRadius: BorderRadius.circular(16),
+    child: InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFFE5E7F0)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, color: _formPrimary, size: 20),
+            const SizedBox(height: 10),
+            Text(
+              label,
+              style: const TextStyle(
+                color: Color(0xFF69708A),
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.7,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              value,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Color(0xFF242638),
+                fontSize: 15,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
 }
