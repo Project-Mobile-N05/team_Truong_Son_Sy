@@ -9,6 +9,7 @@ import 'firebase_options.dart';
 import 'navigation/main_navigation.dart';
 import 'screens/login_screen.dart';
 import 'services/auth_service.dart';
+import 'services/device_notifier.dart';
 import 'widgets/app_loading_screen.dart';
 import 'widgets/login_success_screen.dart';
 
@@ -35,6 +36,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      scaffoldMessengerKey: appMessengerKey,
       title: 'Quản Lý Bài Tập',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(

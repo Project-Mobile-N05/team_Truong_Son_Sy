@@ -24,7 +24,7 @@ void main() {
     fs = FakeFirebaseFirestore();
     repo = FirestoreRepository<ReminderData>('reminders', ReminderData.fromMap,
         firestore: fs);
-    service = ReminderService(repository: repo, currentUid: () => 'u1');
+    service = ReminderService(repository: repo, currentUid: () => 'u1', clock: () => DateTime(2026, 10, 1));
   });
 
   group('schedule', () {
@@ -86,20 +86,39 @@ void main() {
       expect(r.status, NotificationStatus.pending);
     });
 
-    test('nhắc nhở đã gửi thì ném ReminderException', () async {
+    test('hạn còn dưới 24 giờ thì nhắc ngay bây giờ', () async {
+      final soon = ReminderService(
+          repository: repo,
+          currentUid: () => 'u1',
+          clock: () => DateTime(2026, 11, 10, 3)); // còn 6 giờ tới hạn 9:00
+      await soon.schedule(makeTask());
+      expect((await soon.findAll()).first.scheduledAt, DateTime(2026, 11, 10, 3));
+    });
+
+    test('deadline đã quá hạn thì không tạo nhắc nhở', () async {
+      final late = ReminderService(
+          repository: repo,
+          currentUid: () => 'u1',
+          clock: () => DateTime(2026, 11, 11));
+      await late.schedule(makeTask());
+      expect(await late.findAll(), isEmpty);
+    });
+
+    test('bật lại nhắc nhở đã gửi: về đang bật, xóa sentAt, nhắc từ bây giờ',
+        () async {
       final id = await repo.add(ReminderData(
         userId: 'u1',
         taskId: 't1',
         message: 'x',
-        scheduledAt: due,
+        scheduledAt: DateTime(2026, 9, 1), // trước đồng hồ giả 1/10/2026
         status: NotificationStatus.sent,
+        sentAt: DateTime(2026, 9, 1),
       ));
+      await service.setEnabled((await repo.getById(id))!, true);
       final r = (await repo.getById(id))!;
-      await expectLater(
-        service.setEnabled(r, false),
-        throwsA(isA<ReminderException>().having(
-            (e) => e.message, 'message', contains('đã gửi'))),
-      );
+      expect(r.status, NotificationStatus.pending);
+      expect(r.sentAt, isNull);
+      expect(r.scheduledAt, DateTime(2026, 10, 1));
     });
   });
 

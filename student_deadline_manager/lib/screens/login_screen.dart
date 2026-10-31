@@ -159,11 +159,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                 label: 'Mã sinh viên',
                                 icon: Icons.badge_outlined,
                               ),
-                              validator: (v) => AuthService.validateRequired(
-                                v,
-                                'mã sinh viên',
-                              ),
+                              validator: AuthService.validateStudentCode,
                             ),
+                            
                             const SizedBox(height: 13),
                             TextFormField(
                               controller: _nameCtrl,

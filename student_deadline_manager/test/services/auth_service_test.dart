@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:student_deadline_manager/models/account_data.dart';
 import 'package:student_deadline_manager/services/auth_service.dart';
 import 'package:student_deadline_manager/services/firestore_repository.dart';
+import 'package:student_deadline_manager/models/student_code_data.dart';
 
 Matcher authError(String message) =>
     throwsA(isA<AuthException>().having((e) => e.message, 'message', message));
@@ -70,6 +71,9 @@ void main() {
         auth: auth,
         users: FirestoreRepository<AccountData>('users', AccountData.fromMap,
             firestore: fs),
+        codes: FirestoreRepository<StudentCodeData>(
+            'student_codes', StudentCodeData.fromMap,
+            firestore: fs),
       );
     });
 
@@ -109,6 +113,17 @@ void main() {
       expect(await countUsers(), 0);
     });
 
+    test('register trùng mã sinh viên: báo lỗi, không tạo thêm hồ sơ', () async {
+      await service.register(
+          studentCode: '241077', fullName: 'A', email: 'a@b.com', password: '123456');
+      await expectLater(
+        service.register(
+            studentCode: '241077', fullName: 'B', email: 'b@b.com', password: '123456'),
+        authError('Mã sinh viên đã được đăng ký'),
+      );
+      expect(await countUsers(), 1);
+    });
+    
     test('register hợp lệ: tạo đúng một hồ sơ, bỏ khoảng trắng thừa', () async {
       final acc = await service.register(
         studentCode: ' 241077 ',

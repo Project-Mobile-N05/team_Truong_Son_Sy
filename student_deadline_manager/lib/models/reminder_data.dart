@@ -63,19 +63,23 @@ class ReminderData extends BaseEntity {
   /// Đang bật (chờ nhắc).
   bool get isEnabled => status == NotificationStatus.pending;
 
-  /// Chỉ bật/tắt được khi chưa gửi: đang bật hoặc đã tắt.
-  bool get canToggle =>
-      status == NotificationStatus.pending ||
-      status == NotificationStatus.cancelled;
+  /// Mọi trạng thái đều bật/tắt lại được: bật lại nhắc nhở đã gửi sẽ gửi lần nữa.
+  bool get canToggle => true;
 
-  ReminderData copyWith({NotificationStatus? status}) => ReminderData(
+  ReminderData copyWith({
+    NotificationStatus? status,
+    DateTime? sentAt,
+    DateTime? scheduledAt,
+    bool clearSentAt = false,
+  }) =>
+      ReminderData(
         id: id,
         userId: userId,
         taskId: taskId,
         message: message,
-        scheduledAt: scheduledAt,
+        scheduledAt: scheduledAt ?? this.scheduledAt,
         status: status ?? this.status,
-        sentAt: sentAt,
+        sentAt: clearSentAt ? null : (sentAt ?? this.sentAt),
         createdAt: createdAt,
       );
 }

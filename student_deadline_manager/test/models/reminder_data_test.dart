@@ -37,11 +37,10 @@ void main() {
       expect(sample(status: NotificationStatus.sent).isEnabled, isFalse);
     });
 
-    test('bật/tắt được khi pending hoặc cancelled, không được khi đã gửi', () {
-      expect(sample().canToggle, isTrue);
-      expect(sample(status: NotificationStatus.cancelled).canToggle, isTrue);
-      expect(sample(status: NotificationStatus.sent).canToggle, isFalse);
-      expect(sample(status: NotificationStatus.failed).canToggle, isFalse);
+    test('mọi trạng thái đều bật/tắt lại được', () {
+      for (final s in NotificationStatus.values) {
+        expect(sample(status: s).canToggle, isTrue);
+      }
     });
   });
 
@@ -89,6 +88,25 @@ void main() {
       expect(c.id, 'r1');
       expect(c.taskId, 't1');
       expect(c.scheduledAt, at);
+    });
+
+    test('clearSentAt xóa thời điểm gửi, scheduledAt đổi được', () {
+      final sent = ReminderData(
+        id: 'r1',
+        userId: 'u1',
+        taskId: 't1',
+        message: 'x',
+        scheduledAt: at,
+        status: NotificationStatus.sent,
+        sentAt: at,
+      );
+      final c = sent.copyWith(
+        status: NotificationStatus.pending,
+        clearSentAt: true,
+        scheduledAt: DateTime(2026, 12, 1),
+      );
+      expect(c.sentAt, isNull);
+      expect(c.scheduledAt, DateTime(2026, 12, 1));
     });
   });
 }

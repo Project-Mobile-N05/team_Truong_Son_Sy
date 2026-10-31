@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import '../models/account_data.dart';
+import '../models/student_code_data.dart';
 import 'firestore_repository.dart';
 
 class AuthException implements Exception {
@@ -19,12 +20,18 @@ class AuthService {
 
   final FirebaseAuth _auth;
   final FirestoreRepository<AccountData> _users;
+  final FirestoreRepository<StudentCodeData> _codes;
 
-  AuthService({FirebaseAuth? auth, FirestoreRepository<AccountData>? users})
-    : _auth = auth ?? FirebaseAuth.instance,
-      _users =
-          users ??
-          FirestoreRepository<AccountData>('users', AccountData.fromMap);
+  AuthService({
+    FirebaseAuth? auth,
+    FirestoreRepository<AccountData>? users,
+    FirestoreRepository<StudentCodeData>? codes,
+  })  : _auth = auth ?? FirebaseAuth.instance,
+        _users = users ??
+            FirestoreRepository<AccountData>('users', AccountData.fromMap),
+        _codes = codes ??
+            FirestoreRepository<StudentCodeData>(
+                'student_codes', StudentCodeData.fromMap);
 
   static final RegExp _emailRe = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
 
@@ -43,6 +50,16 @@ class AuthService {
 
   static String? validateRequired(String? v, String label) =>
       (v == null || v.trim().isEmpty) ? 'Vui lòng nhập $label' : null;
+
+  /// Mã sinh viên dùng làm id document nên chỉ cho chữ, số, gạch nối, gạch dưới.
+  static String? validateStudentCode(String? v) {
+    final s = (v ?? '').trim();
+    if (s.isEmpty) return 'Vui lòng nhập mã sinh viên';
+    if (!RegExp(r'^[A-Za-z0-9_-]+$').hasMatch(s)) {
+      return 'Mã sinh viên chỉ gồm chữ và số';
+    }
+    return null;
+  }
 
   String? get currentUid => _auth.currentUser?.uid;
 
@@ -78,14 +95,15 @@ class AuthService {
     }
   }
 
+  /// Đăng ký (Hình 3.5): kiểm tra trùng mã sinh viên, tạo tài khoản Firebase Auth,
+  /// rồi giữ chỗ mã sinh viên và lưu hồ sơ users/{uid}. Lưu lỗi thì hoàn tác.
   Future<AccountData> register({
     required String studentCode,
     required String fullName,
     required String email,
     required String password,
   }) async {
-    final err =
-        validateRequired(studentCode, 'mã sinh viên') ??
+    final err = validateStudentCode(studentCode) ??
         validateRequired(fullName, 'họ tên') ??
         validateEmail(email) ??
         validatePassword(password);
@@ -93,6 +111,18 @@ class AuthService {
 
     busy.value = true;
     try {
+      final code = studentCode.trim();
+
+      // Bước 1: mã sinh viên đã có người đăng ký chưa?
+      try {
+        if (await _codes.getById(code) != null) {
+          throw const AuthException('Mã sinh viên đã được đăng ký');
+        }
+      } on RepositoryException catch (e) {
+        throw AuthException(e.message);
+      }
+
+      // Bước 2: tạo tài khoản (email trùng thì Firebase báo email-already-in-use).
       UserCredential cred;
       try {
         cred = await _auth.createUserWithEmailAndPassword(
@@ -103,18 +133,23 @@ class AuthService {
         throw AuthException(_message(e.code));
       }
 
+      // Bước 3: giữ chỗ mã sinh viên và lưu hồ sơ users/{uid}.
       final user = cred.user!;
       final profile = AccountData(
         id: user.uid,
-        studentCode: studentCode.trim(),
+        studentCode: code,
         fullName: fullName.trim(),
         email: email.trim(),
       );
       try {
-        await _users.update(user.uid, profile); // set theo id = uid
+        await _codes.update(code, StudentCodeData(uid: user.uid));
+        await _users.update(user.uid, profile);
         _cacheProfile(profile);
         return profile;
       } on RepositoryException catch (e) {
+        try {
+          await _codes.delete(code); // phải xóa trước khi xóa tài khoản
+        } catch (_) {}
         try {
           await user.delete();
         } catch (_) {}

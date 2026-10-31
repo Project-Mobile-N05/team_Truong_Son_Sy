@@ -9,6 +9,7 @@ import '../screens/subject_screen.dart';
 import '../screens/task_form_screen.dart';
 import '../services/subject_options.dart';
 import '../services/subject_service.dart';
+import '../services/notification_scheduler.dart';
 
 /// Một tab của thanh điều hướng dưới.
 class AppTab {
@@ -43,6 +44,19 @@ class MainNavigation extends StatefulWidget {
 class _MainNavigationState extends State<MainNavigation> {
   int _selectedIndex = 0;
   final Set<int> _visitedTabs = {0};
+  final NotificationScheduler _scheduler = NotificationScheduler();
+
+  @override
+  void initState() {
+    super.initState();
+    _scheduler.start(); // quét mỗi 1 giờ, gửi mỗi 5 phút khi đã đăng nhập
+  }
+
+  @override
+  void dispose() {
+    _scheduler.stop();
+    super.dispose();
+  }
 
   late final List<AppTab> _tabs = [
     AppTab(
