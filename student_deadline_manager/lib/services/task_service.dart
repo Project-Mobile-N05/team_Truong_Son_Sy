@@ -32,9 +32,9 @@ class TaskService {
   /// Báo thay đổi deadline để cập nhật các màn hình còn được giữ trong navigation.
   static final ValueNotifier<int> taskChanges = ValueNotifier<int>(0);
   static const Duration _cacheTtl = Duration(seconds: 20);
-  static final Map<String, _TaskCacheEntry> _taskCache = {};
-  static final Map<String, Future<List<Task>>> _pendingLoads = {};
-  static final Map<String, int> _cacheGeneration = {};
+  static final Map<_TaskCacheKey, _TaskCacheEntry> _taskCache = {};
+  static final Map<_TaskCacheKey, Future<List<Task>>> _pendingLoads = {};
+  static final Map<_TaskCacheKey, int> _cacheGeneration = {};
 
   /// [repository]: truyền repository dùng FakeFirebaseFirestore khi unit test.
   /// [subjectExists], [scheduleReminder], [cancelReminders]: điểm nối với
@@ -111,32 +111,37 @@ class TaskService {
     bool forceRefresh = false,
   }) async {
     _requireUser(userId);
-    final cached = _taskCache[userId];
+    final key = _TaskCacheKey(_repo.cacheScope, userId);
+    final cached = _taskCache[key];
     if (!forceRefresh &&
         cached != null &&
         DateTime.now().difference(cached.loadedAt) < _cacheTtl) {
       return cached.tasks;
     }
-    final pending = _pendingLoads[userId];
+    final pending = _pendingLoads[key];
     if (pending != null) return pending;
 
-    final generation = _cacheGeneration[userId] ?? 0;
-    final request = _loadAndCache(userId, generation);
-    _pendingLoads[userId] = request;
+    final generation = _cacheGeneration[key] ?? 0;
+    final request = _loadAndCache(key, userId, generation);
+    _pendingLoads[key] = request;
     try {
       return await request;
     } finally {
-      if (identical(_pendingLoads[userId], request)) {
-        _pendingLoads.remove(userId);
+      if (identical(_pendingLoads[key], request)) {
+        _pendingLoads.remove(key);
       }
     }
   }
 
-  Future<List<Task>> _loadAndCache(String userId, int generation) async {
+  Future<List<Task>> _loadAndCache(
+    _TaskCacheKey key,
+    String userId,
+    int generation,
+  ) async {
     final list = await _guard(() => _repo.getByUser(userId));
     final tasks = List<Task>.unmodifiable(list);
-    if ((_cacheGeneration[userId] ?? 0) == generation) {
-      _taskCache[userId] = _TaskCacheEntry(tasks, DateTime.now());
+    if ((_cacheGeneration[key] ?? 0) == generation) {
+      _taskCache[key] = _TaskCacheEntry(tasks, DateTime.now());
     }
     return tasks;
   }
@@ -250,9 +255,10 @@ class TaskService {
   }
 
   void _notifyTaskChanges(String userId) {
-    _taskCache.remove(userId);
-    _cacheGeneration[userId] = (_cacheGeneration[userId] ?? 0) + 1;
-    _pendingLoads.remove(userId);
+    final key = _TaskCacheKey(_repo.cacheScope, userId);
+    _taskCache.remove(key);
+    _cacheGeneration[key] = (_cacheGeneration[key] ?? 0) + 1;
+    _pendingLoads.remove(key);
     taskChanges.value++;
   }
 
@@ -322,4 +328,20 @@ class _TaskCacheEntry {
   final DateTime loadedAt;
 
   const _TaskCacheEntry(this.tasks, this.loadedAt);
+}
+
+class _TaskCacheKey {
+  final Object scope;
+  final String userId;
+
+  const _TaskCacheKey(this.scope, this.userId);
+
+  @override
+  bool operator ==(Object other) =>
+      other is _TaskCacheKey &&
+      identical(other.scope, scope) &&
+      other.userId == userId;
+
+  @override
+  int get hashCode => Object.hash(identityHashCode(scope), userId);
 }
