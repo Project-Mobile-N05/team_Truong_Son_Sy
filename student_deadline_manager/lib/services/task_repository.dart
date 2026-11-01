@@ -14,11 +14,16 @@ class TaskRepositoryException implements Exception {
 /// Viết riêng cho phần Task để lọc theo `userId` và không phụ thuộc vào
 /// repository dùng chung của module khác.
 class TaskRepository {
+  final FirebaseFirestore _firestore;
   final CollectionReference<Map<String, dynamic>> _col;
 
   /// [firestore]: truyền FakeFirebaseFirestore khi unit test.
   TaskRepository({FirebaseFirestore? firestore})
-      : _col = (firestore ?? FirebaseFirestore.instance).collection('tasks');
+      : _firestore = firestore ?? FirebaseFirestore.instance,
+        _col = (firestore ?? FirebaseFirestore.instance).collection('tasks');
+
+  /// Phạm vi cache tương ứng với instance Firestore chứa dữ liệu.
+  Object get cacheScope => _firestore;
 
   Future<R> _guard<R>(Future<R> Function() action, String what) async {
     try {
@@ -27,7 +32,7 @@ class TaskRepository {
       throw TaskRepositoryException('$what thất bại: ${e.code}');
     } catch (e) {
       throw TaskRepositoryException('$what thất bại: $e');
-    } 
+    }
   }
 
   /// Thêm Document mới, trả về id.
