@@ -196,11 +196,21 @@ class AuthService {
     }
   }
 
-  Future<AccountData> updateProfile(String fullName) async {
-    final err = validateRequired(fullName, 'họ tên');
+  Future<AccountData> updateProfile(
+    String fullName, {
+    String? school,
+    String? major,
+  }) async {
+    final err = validateRequired(fullName, 'họ tên') ??
+        (school == null ? null : validateRequired(school, 'trường')) ??
+        (major == null ? null : validateRequired(major, 'chuyên ngành'));
     if (err != null) throw AuthException(err);
     final current = await getProfile();
-    final updated = current.copyWith(fullName: fullName.trim());
+    final updated = current.copyWith(
+      fullName: fullName.trim(),
+      school: school?.trim(),
+      major: major?.trim(),
+    );
     try {
       await _users.update(current.id!, updated);
       _cacheProfile(updated);

@@ -58,49 +58,102 @@ class _AccountScreenState extends State<AccountScreen> {
     }
   }
 
-  Future<void> _changePassword() async {
-    final cur = TextEditingController();
-    final next = TextEditingController();
-    final ok = await showDialog<bool>(
+    Future<void> _editEducation(AccountData current) async {
+      final schoolCtrl = TextEditingController(text: current.school);
+      final majorCtrl = TextEditingController(text: current.major);
+      final values = await showDialog<(String, String)>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Đổi mật khẩu'),
+          title: const Text('Sửa thông tin học tập'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
-              controller: cur,
-              obscureText: true,
-              decoration:
-                  const InputDecoration(labelText: 'Mật khẩu hiện tại'),
+                controller: schoolCtrl,
+                autofocus: true,
+                decoration: const InputDecoration(labelText: 'Trường'),
+              ),
+              TextField(
+                controller: majorCtrl,
+                decoration: const InputDecoration(labelText: 'Chuyên ngành'),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Hủy'),
             ),
-            TextField(
-              controller: next,
-              obscureText: true,
-              decoration: const InputDecoration(labelText: 'Mật khẩu mới'),
+            FilledButton(
+              onPressed: () => Navigator.pop(
+                ctx,
+                (schoolCtrl.text, majorCtrl.text),
+              ),
+              child: const Text('Lưu'),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Hủy')),
-          FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Đổi')),
-        ],
-      ),
-    );
-    final curText = cur.text, nextText = next.text;
-    cur.dispose();
-    next.dispose();
-    if (ok != true) return;
-    try {
-      await _auth.changePassword(curText, nextText);
-      if (mounted) _toast('Đã đổi mật khẩu');
-    } on AuthException catch (e) {
-      if (mounted) _toast(e.message);
+      );
+      schoolCtrl.dispose();
+      majorCtrl.dispose();
+      if (values == null) return;
+      try {
+        await _auth.updateProfile(
+          current.fullName,
+          school: values.$1,
+          major: values.$2,
+        );
+        if (!mounted) return;
+        _reload();
+        _toast('Đã cập nhật thông tin học tập');
+      } on AuthException catch (e) {
+        if (mounted) _toast(e.message);
+      }
     }
+
+    Future<void> _changePassword() async {
+      final cur = TextEditingController();
+      final next = TextEditingController();
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Đổi mật khẩu'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: cur,
+                obscureText: true,
+                decoration:
+                    const InputDecoration(labelText: 'Mật khẩu hiện tại'),
+              ),
+              TextField(
+                controller: next,
+                obscureText: true,
+                decoration: const InputDecoration(labelText: 'Mật khẩu mới'),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Hủy')),
+            FilledButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Đổi')),
+          ],
+        ),
+      );
+      final curText = cur.text, nextText = next.text;
+      cur.dispose();
+      next.dispose();
+      if (ok != true) return;
+      try {
+        await _auth.changePassword(curText, nextText);
+        if (mounted) _toast('Đã đổi mật khẩu');
+      } on AuthException catch (e) {
+        if (mounted) _toast(e.message);
+      }
   }
 
   Future<void> _logout() async {
@@ -149,12 +202,12 @@ class _AccountScreenState extends State<AccountScreen> {
                   height: 130,
                 ),
                 const SizedBox(height: 12),
-                const Row(
+                Row(
                   children: [
                     Expanded(
                       child: PastelTile(
                         title: 'Trường',
-                        subtitle: 'Đại học Phenikaa',
+                        subtitle: acc.school,
                         color: Color(0xFFFFE0E3),
                       ),
                     ),
@@ -162,7 +215,7 @@ class _AccountScreenState extends State<AccountScreen> {
                     Expanded(
                       child: PastelTile(
                         title: 'Chuyên ngành',
-                        subtitle: 'Công nghệ Thông tin',
+                        subtitle: acc.major,
                         color: Color(0xFFDDF3FF),
                       ),
                     ),
@@ -175,6 +228,13 @@ class _AccountScreenState extends State<AccountScreen> {
                     children: [
                       _row(Icons.edit_outlined, 'Sửa họ tên', acc.fullName,
                           () => _editName(acc)),
+                      const Divider(height: 1),
+                      _row(
+                        Icons.school_outlined,
+                        'Sửa trường và chuyên ngành',
+                        '${acc.school} · ${acc.major}',
+                        () => _editEducation(acc),
+                      ),
                       const Divider(height: 1),
                       _row(Icons.lock_outline, 'Đổi mật khẩu',
                           'Cập nhật mật khẩu đăng nhập', _changePassword),
