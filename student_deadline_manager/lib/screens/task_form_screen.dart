@@ -56,7 +56,10 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
     _notes = TextEditingController(text: t?.notes ?? '');
     _subjectId = t?.subjectId;
     _type = t?.type;
-    _status = (t == null || t.status == TaskStatus.overdue)
+    _status =
+        (t == null ||
+            t.status == TaskStatus.overdue ||
+            t.status == TaskStatus.completed)
         ? TaskStatus.pending
         : t.status;
     final base = t?.taskDatetime ?? widget.initialDate ?? DateTime.now();
