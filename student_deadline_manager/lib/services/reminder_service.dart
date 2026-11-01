@@ -131,6 +131,20 @@ class ReminderService {
     if (pending.isNotEmpty) _notifyChanged();
   }
 
+/// Xóa hẳn mọi nhắc nhở (mọi trạng thái) của một deadline,
+/// dùng khi deadline được đánh dấu Xong.
+Future<void> removeForTask(String taskId) async {
+  final uid = _requireUid();
+  // Lọc theo userId (index một trường) rồi lọc taskId trong ứng dụng,
+  // tránh phụ thuộc composite index.
+  final all = await _guard(() => _repo.findWhere('userId', uid));
+  final mine = all.where((r) => r.taskId == taskId).toList();
+  for (final r in mine) {
+    await _guard(() => _repo.delete(r.id!));
+  }
+  if (mine.isNotEmpty) _notifyChanged();
+}
+
   Future<bool> _hasPendingForTask(String uid, String taskId) async =>
       (await _pendingForTask(uid, taskId)).isNotEmpty;
 

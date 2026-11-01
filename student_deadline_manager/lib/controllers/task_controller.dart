@@ -34,6 +34,7 @@ class TaskController extends ChangeNotifier {
               // tự tạo/hủy nhắc nhở.
               scheduleReminder: ReminderService().schedule,
               cancelReminders: ReminderService().cancelForTask,
+              removeReminders: ReminderService().removeForTask,
             ),
         _currentUid = currentUid ?? _authUid,
         _subjectLoader = subjectLoader;

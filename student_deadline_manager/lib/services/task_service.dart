@@ -27,6 +27,7 @@ class TaskService {
   final SubjectChecker? _subjectExists;
   final Future<void> Function(Task task)? _scheduleReminder;
   final Future<void> Function(String taskId)? _cancelReminders;
+  final Future<void> Function(String taskId)? _removeReminders;
 
   /// Báo thay đổi deadline để cập nhật các màn hình còn được giữ trong navigation.
   static final ValueNotifier<int> taskChanges = ValueNotifier<int>(0);
@@ -43,10 +44,12 @@ class TaskService {
     SubjectChecker? subjectExists,
     Future<void> Function(Task task)? scheduleReminder,
     Future<void> Function(String taskId)? cancelReminders,
+    Future<void> Function(String taskId)? removeReminders,
   }) : _repo = repository ?? TaskRepository(),
        _subjectExists = subjectExists,
        _scheduleReminder = scheduleReminder,
-       _cancelReminders = cancelReminders;
+       _cancelReminders = cancelReminders,
+       _removeReminders = removeReminders;
 
   // ---------- Kiểm tra dữ liệu (dùng được cho form và unit test) ----------
 
@@ -299,12 +302,14 @@ class TaskService {
     }
   }
 
-  Future<void> _syncReminder(Task task, String taskId) async {
-    await _safeReminder(() => _cancelReminders?.call(taskId));
-    if (task.status != TaskStatus.completed) {
-      await _safeReminder(() => _scheduleReminder?.call(task));
-    }
+Future<void> _syncReminder(Task task, String taskId) async {
+  if (task.status == TaskStatus.completed) {
+    await _safeReminder(() => _removeReminders?.call(taskId));
+    return;
   }
+  await _safeReminder(() => _cancelReminders?.call(taskId));
+  await _safeReminder(() => _scheduleReminder?.call(task));
+}
 
   String? _blankToNull(String? s) {
     final t = s?.trim();

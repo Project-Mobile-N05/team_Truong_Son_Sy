@@ -78,6 +78,78 @@ void main() {
     });
   });
 
+  group('removeForTask', () {
+    test('xóa nhắc nhở của đúng deadline, không đụng deadline khác', () async {
+      await service.schedule(makeTask(id: 't1'));
+      await service.schedule(makeTask(id: 't2', title: 'Thi giữa kỳ'));
+
+      await service.removeForTask('t1');
+
+      final list = await service.findAll();
+      expect(list.length, 1);
+      expect(list.first.taskId, 't2');
+      expect(list.first.status, NotificationStatus.pending);
+    });
+
+    test('xóa mọi trạng thái: đang bật, đã gửi, đã tắt, gửi lỗi', () async {
+      for (final s in [
+        NotificationStatus.pending,
+        NotificationStatus.sent,
+        NotificationStatus.cancelled,
+        NotificationStatus.failed,
+      ]) {
+        await repo.add(ReminderData(
+          userId: 'u1',
+          taskId: 't1',
+          message: 'x',
+          scheduledAt: due,
+          status: s,
+        ));
+      }
+
+      await service.removeForTask('t1');
+
+      expect(await service.findAll(), isEmpty);
+    });
+
+    test('không xóa nhắc nhở của người dùng khác cùng taskId', () async {
+      await service.schedule(makeTask(id: 't1'));
+      await repo.add(ReminderData(
+        userId: 'u2',
+        taskId: 't1',
+        message: 'của người khác',
+        scheduledAt: due,
+      ));
+
+      await service.removeForTask('t1');
+
+      expect(await service.findAll(), isEmpty);
+      expect((await repo.findWhere('userId', 'u2')).length, 1);
+    });
+
+    test('xóa xong thì báo cho các màn hình đang mở tải lại', () async {
+      await service.schedule(makeTask());
+      final before = ReminderService.changes.value;
+      await service.removeForTask('t1');
+      expect(ReminderService.changes.value, greaterThan(before));
+    });
+
+    test('deadline không có nhắc nhở thì không lỗi và không báo thay đổi',
+        () async {
+      final before = ReminderService.changes.value;
+      await service.removeForTask('khong-co');
+      expect(ReminderService.changes.value, before);
+    });
+
+    test('chưa đăng nhập thì ném ReminderException', () async {
+      final guest = ReminderService(repository: repo, currentUid: () => null);
+      await expectLater(
+        guest.removeForTask('t1'),
+        throwsA(isA<ReminderException>()),
+      );
+    });
+  });
+
   group('setEnabled', () {
     test('tắt rồi bật lại đổi trạng thái cancelled <-> pending', () async {
       await service.schedule(makeTask());
