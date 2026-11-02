@@ -5,6 +5,7 @@ import '../models/task.dart';
 import '../models/task_status.dart';
 import 'task_repository.dart';
 
+/// Lỗi nghiệp vụ của Task, [message] là câu tiếng Việt hiển thị cho người dùng.
 class TaskException implements Exception {
   final String message;
   const TaskException(this.message);
@@ -12,8 +13,15 @@ class TaskException implements Exception {
   String toString() => message;
 }
 
+/// Kiểm tra môn học có tồn tại và thuộc về user không.
+/// Nối với `Subject.findOne(id, userId)` của module môn học khi ghép code.
 typedef SubjectChecker = Future<bool> Function(String subjectId, String userId);
 
+/// Xử lý nghiệp vụ Task (deadline) theo Class Diagram:
+/// create, findAll, findOne, update, remove.
+///
+/// Mọi hàm nhận [userId] (lấy từ `AuthService().currentUid`) và chỉ thao tác
+/// trên Task của chính user đó.
 class TaskService {
   final TaskRepository _repo;
   final SubjectChecker? _subjectExists;
@@ -28,6 +36,9 @@ class TaskService {
   static final Map<_TaskCacheKey, Future<List<Task>>> _pendingLoads = {};
   static final Map<_TaskCacheKey, int> _cacheGeneration = {};
 
+  /// [repository]: truyền repository dùng FakeFirebaseFirestore khi unit test.
+  /// [subjectExists], [scheduleReminder], [cancelReminders]: điểm nối với
+  /// module Môn học (Sơn) và Nhắc nhở (Trường); null thì bỏ qua bước đó.
   TaskService({
     TaskRepository? repository,
     SubjectChecker? subjectExists,
@@ -257,6 +268,7 @@ class TaskService {
     if (userId.isEmpty) throw const TaskException('Bạn chưa đăng nhập');
   }
 
+  /// Đổi [TaskRepositoryException] thành [TaskException].
   Future<R> _guard<R>(Future<R> Function() action) async {
     try {
       return await action();

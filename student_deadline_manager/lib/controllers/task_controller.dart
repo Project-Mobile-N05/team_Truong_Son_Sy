@@ -5,6 +5,8 @@ import '../services/auth_service.dart';
 import '../services/reminder_service.dart';
 import '../services/task_service.dart';
 
+/// Một môn học để hiển thị tên và chọn trong form.
+/// Nối với module Môn học (Sơn) qua [SubjectLoader].
 class SubjectOption {
   final String id;
   final String name;
@@ -21,12 +23,15 @@ class TaskController extends ChangeNotifier {
   final String? Function() _currentUid;
   final SubjectLoader? _subjectLoader;
 
+  /// [service], [currentUid] chỉ truyền khi unit test.
   TaskController({
     TaskService? service,
     String? Function()? currentUid,
     SubjectLoader? subjectLoader,
   })  : _service = service ??
             TaskService(
+              // Nối module Nhắc nhở (Trường): thêm/sửa/xóa deadline sẽ
+              // tự tạo/hủy nhắc nhở.
               scheduleReminder: ReminderService().schedule,
               cancelReminders: ReminderService().cancelForTask,
               removeReminders: ReminderService().removeForTask,
@@ -53,6 +58,7 @@ class TaskController extends ChangeNotifier {
   DateTime get selectedDay => _selectedDay;
   DateTime get visibleMonth => _visibleMonth;
 
+  /// Tên môn học theo id, null nếu không có.
   String? subjectName(String? id) {
     if (id == null) return null;
     for (final s in _subjects) {
@@ -61,10 +67,13 @@ class TaskController extends ChangeNotifier {
     return null;
   }
 
+  /// Các ngày có deadline (để đánh dấu chấm trên lịch).
   Set<DateTime> get markedDays => _markedDays;
 
+  /// Các ngày có deadline quá hạn (chấm đỏ).
   Set<DateTime> get overdueDays => _overdueDays;
 
+  /// Deadline của ngày đang chọn, sắp xếp theo giờ.
   List<Task> get selectedTasks =>
       _tasksByDay[_selectedDay] ?? const <Task>[];
 
@@ -74,6 +83,7 @@ class TaskController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Chuyển tháng: [delta] = -1 là tháng trước, 1 là tháng sau.
   void changeMonth(int delta) {
     _visibleMonth = DateTime(_visibleMonth.year, _visibleMonth.month + delta);
     notifyListeners();
@@ -128,6 +138,8 @@ class TaskController extends ChangeNotifier {
     });
   }
 
+  /// Thêm mới ([existing] = null) hoặc cập nhật deadline.
+  /// Trả về null nếu thành công, ngược lại là thông báo lỗi tiếng Việt.
   Future<String?> save({Task? existing, required TaskDto dto}) async {
     final err = await _run((uid) async {
       if (existing == null) {

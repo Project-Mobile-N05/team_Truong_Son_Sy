@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/task.dart';
 
+/// Lỗi truy cập Firestore của Task. [message] là câu tiếng Việt.
 class TaskRepositoryException implements Exception {
   final String message;
   const TaskRepositoryException(this.message);
@@ -8,14 +9,20 @@ class TaskRepositoryException implements Exception {
   String toString() => 'TaskRepositoryException: $message';
 }
 
+/// ORM của Task: Object ([Task]) <-> Document (collection `tasks`).
+///
+/// Viết riêng cho phần Task để lọc theo `userId` và không phụ thuộc vào
+/// repository dùng chung của module khác.
 class TaskRepository {
   final FirebaseFirestore _firestore;
   final CollectionReference<Map<String, dynamic>> _col;
 
+  /// [firestore]: truyền FakeFirebaseFirestore khi unit test.
   TaskRepository({FirebaseFirestore? firestore})
       : _firestore = firestore ?? FirebaseFirestore.instance,
         _col = (firestore ?? FirebaseFirestore.instance).collection('tasks');
 
+  /// Phạm vi cache tương ứng với instance Firestore chứa dữ liệu.
   Object get cacheScope => _firestore;
 
   Future<R> _guard<R>(Future<R> Function() action, String what) async {
