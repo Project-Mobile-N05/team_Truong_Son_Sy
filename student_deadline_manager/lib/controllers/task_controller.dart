@@ -1,0 +1,171 @@
+import 'package:flutter/foundation.dart';
+import '../models/task.dart';
+import '../models/task_status.dart';
+import '../services/auth_service.dart';
+import '../services/reminder_service.dart';
+import '../services/task_service.dart';
+
+class SubjectOption {
+  final String id;
+  final String name;
+  const SubjectOption(this.id, this.name);
+}
+
+/// Hàm lấy danh sách môn học của user. Chưa truyền thì danh sách môn học rỗng.
+typedef SubjectLoader = Future<List<SubjectOption>> Function(String userId);
+
+/// Cầu nối giữa màn hình (Lịch, thêm/sửa deadline) và [TaskService].
+/// Giữ trạng thái màn hình: danh sách deadline, ngày đang chọn, tháng đang xem.
+class TaskController extends ChangeNotifier {
+  final TaskService _service;
+  final String? Function() _currentUid;
+  final SubjectLoader? _subjectLoader;
+
+  TaskController({
+    TaskService? service,
+    String? Function()? currentUid,
+    SubjectLoader? subjectLoader,
+  })  : _service = service ??
+            TaskService(
+              scheduleReminder: ReminderService().schedule,
+              cancelReminders: ReminderService().cancelForTask,
+              removeReminders: ReminderService().removeForTask,
+            ),
+        _currentUid = currentUid ?? _authUid,
+        _subjectLoader = subjectLoader;
+
+  static String? _authUid() => AuthService().currentUid;
+
+  List<Task> _tasks = [];
+  Map<DateTime, List<Task>> _tasksByDay = const <DateTime, List<Task>>{};
+  Set<DateTime> _markedDays = const <DateTime>{};
+  Set<DateTime> _overdueDays = const <DateTime>{};
+  List<SubjectOption> _subjects = [];
+  bool _loading = false;
+  String? _error;
+  DateTime _selectedDay = TaskService.dayKey(DateTime.now());
+  DateTime _visibleMonth = DateTime(DateTime.now().year, DateTime.now().month);
+
+  List<Task> get tasks => _tasks;
+  List<SubjectOption> get subjects => _subjects;
+  bool get loading => _loading;
+  String? get error => _error;
+  DateTime get selectedDay => _selectedDay;
+  DateTime get visibleMonth => _visibleMonth;
+
+  String? subjectName(String? id) {
+    if (id == null) return null;
+    for (final s in _subjects) {
+      if (s.id == id) return s.name;
+    }
+    return null;
+  }
+
+  Set<DateTime> get markedDays => _markedDays;
+
+  Set<DateTime> get overdueDays => _overdueDays;
+
+  List<Task> get selectedTasks =>
+      _tasksByDay[_selectedDay] ?? const <Task>[];
+
+  void selectDay(DateTime d) {
+    _selectedDay = TaskService.dayKey(d);
+    _visibleMonth = DateTime(d.year, d.month);
+    notifyListeners();
+  }
+
+  void changeMonth(int delta) {
+    _visibleMonth = DateTime(_visibleMonth.year, _visibleMonth.month + delta);
+    notifyListeners();
+  }
+
+  /// Tải lại danh sách deadline và môn học.
+  Future<void> load({bool forceRefresh = false, bool silent = false}) async {
+    final uid = _currentUid();
+    if (uid == null) {
+      _error = 'Bạn chưa đăng nhập';
+      notifyListeners();
+      return;
+    }
+    if (!silent) {
+      _loading = true;
+      _error = null;
+      notifyListeners();
+    }
+    try {
+      final tasksFuture = _service.findAll(uid, forceRefresh: forceRefresh);
+      final subjectsFuture = _loadSubjects(uid);
+      _tasks = await tasksFuture;
+      _indexTasksByDay();
+      await subjectsFuture;
+      _error = null;
+    } on TaskException catch (e) {
+      _error = e.message;
+    } catch (e) {
+      _error = 'Có lỗi xảy ra: $e';
+    } finally {
+      _loading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> _loadSubjects(String uid) async {
+    final loader = _subjectLoader;
+    if (loader == null) return;
+    try {
+      _subjects = await loader(uid);
+    } catch (_) {
+      _subjects = []; // lỗi môn học không làm hỏng danh sách deadline
+    }
+  }
+
+  void _indexTasksByDay() {
+    _tasksByDay = TaskService.groupByDay(_tasks);
+    _markedDays = Set.unmodifiable(_tasksByDay.keys);
+    _overdueDays = Set.unmodifiable({
+      for (final task in _tasks)
+        if (task.isOverdue()) TaskService.dayKey(task.taskDatetime),
+    });
+  }
+
+  Future<String?> save({Task? existing, required TaskDto dto}) async {
+    final err = await _run((uid) async {
+      if (existing == null) {
+        await _service.create(uid, dto);
+      } else {
+        await _service.update(uid, existing.id!, dto);
+      }
+    });
+    final at = dto.taskDatetime;
+    if (err == null && at != null) selectDay(at);
+    return err;
+  }
+
+  /// Đánh dấu hoàn thành (nút "Xong").
+  Future<String?> complete(Task t) => _run((uid) async {
+        await _service.update(
+          uid,
+          t.id!,
+          TaskDto.fromTask(t, status: TaskStatus.completed),
+        );
+      });
+
+  /// Xóa deadline.
+  Future<String?> remove(Task t) =>
+      _run((uid) => _service.remove(uid, t.id!));
+
+  /// Chạy một thao tác rồi tải lại dữ liệu. Trả về thông báo lỗi hoặc null.
+  Future<String?> _run(Future<void> Function(String uid) action) async {
+    final uid = _currentUid();
+    if (uid == null) return 'Bạn chưa đăng nhập';
+    try {
+      await action(uid);
+    } on TaskException catch (e) {
+      return e.message;
+    } catch (e) {
+      return 'Có lỗi xảy ra: $e';
+    }
+    await load();
+    return null;
+  }
+}
