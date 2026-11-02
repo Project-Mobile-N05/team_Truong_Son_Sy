@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../models/subject.dart';
 import '../models/task.dart';
-import '../models/task_status.dart';
 import '../services/auth_service.dart';
+import '../services/statistics_service.dart';
 import '../services/task_service.dart';
 
 const _primary = Color(0xFF5147BD);
@@ -77,22 +77,11 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
   }
 
   List<Task> get _filteredTasks {
-    return _tasks.where((task) {
-      final date = _dayKey(task.taskDatetime);
-      return !date.isBefore(_appliedStartDate) &&
-          !date.isAfter(_appliedEndDate);
-    }).toList();
-  }
-
-  Map<String, int> get _deadlineCountBySubject {
-    final counts = <String, int>{};
-    for (final task in _filteredTasks) {
-      final subjectId = task.subjectId;
-      if (subjectId != null) {
-        counts.update(subjectId, (count) => count + 1, ifAbsent: () => 1);
-      }
-    }
-    return counts;
+    return StatisticsService.filterByDateRange(
+      _tasks,
+      startDate: _appliedStartDate,
+      endDate: _appliedEndDate,
+    );
   }
 
   void _selectPreset(String preset) {
@@ -157,10 +146,8 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
   @override
   Widget build(BuildContext context) {
     final filteredTasks = _filteredTasks;
-    final completedCount = filteredTasks
-        .where((task) => task.status == TaskStatus.completed)
-        .length;
-    final pendingCount = filteredTasks.length - completedCount;
+    final completedCount = StatisticsService.completedCount(filteredTasks);
+    final pendingCount = StatisticsService.pendingCount(filteredTasks);
 
     return Scaffold(
       backgroundColor: _background,
@@ -328,7 +315,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
   }
 
   Widget _buildSubjects(int totalDeadlines) {
-    final counts = _deadlineCountBySubject;
+    final counts = StatisticsService.deadlineCountBySubject(_filteredTasks);
     final subjects =
         widget.danhSachMonHoc
             .where((subject) => (counts[subject.id] ?? 0) > 0)
