@@ -8,17 +8,12 @@ DateTime _toDate(Object? v) {
   return DateTime.now();
 }
 
-/// Class NotificationLog trong Class Diagram: một nhắc nhở gắn với một deadline.
-/// id = id của Document trong collection `reminders`.
 class ReminderData extends BaseEntity {
-  /// Chủ sở hữu (FK -> users).
   final String userId;
 
-  /// Deadline được nhắc (FK -> tasks).
   final String taskId;
   final String message;
 
-  /// Thời điểm cần nhắc.
   final DateTime scheduledAt;
   final NotificationStatus status;
   final DateTime? sentAt;
@@ -35,7 +30,6 @@ class ReminderData extends BaseEntity {
     DateTime? createdAt,
   }) : createdAt = createdAt ?? DateTime.now();
 
-  /// Document -> Object
   factory ReminderData.fromMap(String id, Map<String, dynamic> m) =>
       ReminderData(
         id: id,
@@ -48,7 +42,6 @@ class ReminderData extends BaseEntity {
         createdAt: _toDate(m['createdAt']),
       );
 
-  /// Object -> Document
   @override
   Map<String, Object> toMap() => {
         'userId': userId,
@@ -60,10 +53,8 @@ class ReminderData extends BaseEntity {
         'createdAt': Timestamp.fromDate(createdAt),
       };
 
-  /// Đang bật (chờ nhắc).
   bool get isEnabled => status == NotificationStatus.pending;
 
-  /// Mọi trạng thái đều bật/tắt lại được: bật lại nhắc nhở đã gửi sẽ gửi lần nữa.
   bool get canToggle => true;
 
   ReminderData copyWith({

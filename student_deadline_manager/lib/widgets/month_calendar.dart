@@ -1,8 +1,5 @@
 import 'package:flutter/material.dart';
 
-/// Lịch tháng theo wireframe: tiêu đề "Tháng 10, 2026", hàng T2..CN,
-/// ngày đang chọn tô màu chính, ngày có deadline có chấm nhỏ (đỏ nếu quá hạn).
-/// Không dùng thư viện ngoài nên không cần thêm dependency.
 class MonthCalendar extends StatelessWidget {
   /// Tháng đang hiển thị (chỉ dùng năm và tháng).
   final DateTime month;

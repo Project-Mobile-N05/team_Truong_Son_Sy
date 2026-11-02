@@ -7,15 +7,12 @@ import 'device_notifier.dart';
 import 'reminder_service.dart';
 import 'task_service.dart';
 
-/// Hai bộ hẹn giờ chạy khi ứng dụng đang mở:
-/// - [runScan] mỗi 1 giờ: quét deadline sắp đến hạn và tạo nhắc nhở (Hình 3.3).
-/// - [runSend] mỗi 5 phút: hiện thông báo cho nhắc nhở đã đến giờ (Hình 3.4).
 class NotificationScheduler {
-//   static const Duration scanEvery = Duration(hours: 1);
-//   static const Duration sendEvery = Duration(minutes: 5);
+  static const Duration scanEvery = Duration(hours: 1);
+  static const Duration sendEvery = Duration(minutes: 5);
 
-  static const Duration scanEvery = Duration(seconds: 30);
-static const Duration sendEvery = Duration(seconds: 15);
+// static const Duration scanEvery = Duration(seconds: 30);
+// static const Duration sendEvery = Duration(seconds: 15);
 
   final ReminderService _reminders;
   final DeviceNotifier _notifier;

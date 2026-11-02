@@ -10,8 +10,6 @@ import '../widgets/screen_header.dart';
 const Color _ink = Color(0xFF1F1B2D);
 const Color _muted = Color(0xFF5F5A70);
 
-/// Một ô danh mục / một dịch vụ nhanh. `key` trùng với AppTab.key
-/// trong main_navigation.dart. Muốn thêm ô: thêm 1 dòng vào danh sách dưới.
 class _Category {
   final String key;
   final String title;
@@ -46,8 +44,6 @@ const _services = [
   ('account', 'Tài khoản', Icons.person_outline),
 ];
 
-/// Trang chủ. [onOpen] nhận khóa chức năng cần mở.
-/// Dữ liệu deadline lấy từ TaskService (module của Sỹ).
 class HomeScreen extends StatefulWidget {
   final void Function(String key) onOpen;
   const HomeScreen({super.key, required this.onOpen});

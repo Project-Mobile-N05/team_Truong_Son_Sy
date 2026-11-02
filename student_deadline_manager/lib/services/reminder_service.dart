@@ -6,7 +6,6 @@ import '../models/task_status.dart';
 import 'auth_service.dart';
 import 'firestore_repository.dart';
 
-/// Lỗi nghiệp vụ của Nhắc nhở, [message] là câu tiếng Việt hiển thị cho người dùng.
 class ReminderException implements Exception {
   final String message;
   const ReminderException(this.message);
@@ -14,9 +13,6 @@ class ReminderException implements Exception {
   String toString() => message;
 }
 
-/// Nghiệp vụ Nhắc nhở. [schedule] và [cancelForTask] là điểm nối với
-/// TaskService (module của Sỹ); [scanUpcoming], [findDue], [markSent],
-/// [markFailed] phục vụ NotificationScheduler.
 class ReminderService {
   /// Nhắc trước hạn bao lâu.
   static const Duration remindBefore = Duration(hours: 24);
@@ -91,7 +87,6 @@ class ReminderService {
     return created;
   }
 
-  /// Nhắc nhở đang bật đã đến giờ gửi (Hình 3.4), cũ nhất trước.
   Future<List<ReminderData>> findDue({DateTime? now}) async {
     final uid = _requireUid();
     final t0 = now ?? _clock();
@@ -209,7 +204,6 @@ Future<void> removeForTask(String taskId) async {
     return uid;
   }
 
-  /// Đổi [RepositoryException] thành [ReminderException].
   Future<R> _guard<R>(Future<R> Function() action) async {
     try {
       return await action();

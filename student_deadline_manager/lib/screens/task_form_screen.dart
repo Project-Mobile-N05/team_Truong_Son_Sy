@@ -10,7 +10,6 @@ const _formPrimary = Color(0xFF5147BD);
 const _formBackground = Color(0xFFF7F8FC);
 
 /// Màn hình thêm / sửa / xóa deadline.
-/// [task] = null là thêm mới, có giá trị là sửa (có thêm ô Trạng thái và nút Xóa).
 ///
 /// Luồng theo sơ đồ Sequence:
 /// - Thêm: kiểm tra form -> create -> báo thành công, quay về.

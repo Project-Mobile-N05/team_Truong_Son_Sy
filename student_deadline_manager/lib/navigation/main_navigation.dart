@@ -13,7 +13,6 @@ import '../services/notification_scheduler.dart';
 
 /// Một tab của thanh điều hướng dưới.
 class AppTab {
-  /// Khóa để chức năng khác (vd: Trang chủ) mở tab này.
   final String key;
   final String label;
   final IconData icon;
@@ -29,11 +28,6 @@ class AppTab {
   });
 }
 
-/// File dùng chung. CÁCH THÊM MODULE MỚI:
-/// - Có tab riêng: thêm 1 AppTab vào _tabs (đúng thứ tự muốn hiển thị).
-/// - Mở bằng màn hình mới (không phải tab): thêm 1 dòng vào _pushes.
-/// Trang chủ mở được cả hai loại nhờ `key`.
-/// Thứ tự theo wireframe: Trang chủ, Môn học, Lịch, Nhắc nhở, Tài khoản.
 class MainNavigation extends StatefulWidget {
   const MainNavigation({super.key});
 
@@ -96,13 +90,11 @@ class _MainNavigationState extends State<MainNavigation> {
     ),
   ];
 
-  /// Chức năng mở bằng màn hình mới (khóa -> hàm mở).
   late final Map<String, Future<void> Function()> _pushes = {
     'stats': _openStatistics,
     'task': _openTaskForm,
   };
 
-  /// Mở chức năng theo khóa: tab, màn hình mới, hoặc báo "đang phát triển".
   void _open(String key) {
     final i = _tabs.indexWhere((t) => t.key == key);
     if (i >= 0) {
@@ -128,7 +120,6 @@ class _MainNavigationState extends State<MainNavigation> {
   void _toast(String msg) =>
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
 
-  /// Thống kê (Sơn) cần danh sách môn học, nên tải trước rồi mới mở.
   Future<void> _openStatistics() async {
     try {
       final list = await SubjectService().layDanhSach();
@@ -141,7 +132,6 @@ class _MainNavigationState extends State<MainNavigation> {
     }
   }
 
-  /// Thêm deadline (Sỹ) cần controller đã tải xong danh sách môn học.
   Future<void> _openTaskForm() async {
     final controller = TaskController(subjectLoader: loadSubjectOptions);
     await controller.load();

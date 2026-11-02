@@ -9,13 +9,7 @@ import '../widgets/month_calendar.dart';
 import '../widgets/task_card.dart';
 import 'task_form_screen.dart';
 
-/// Màn hình Lịch (tab "Lịch"): lịch tháng, danh sách deadline của ngày đang
-/// chọn, nút "Xong" để hoàn thành và nút "+ Thêm deadline".
-///
-/// Luồng theo sơ đồ Sequence: mở tab -> findAll -> nhóm theo ngày -> chọn ngày
-/// -> isOverdue từng deadline -> (chạm deadline -> mở chi tiết/sửa).
 class CalendarScreen extends StatefulWidget {
-  /// Chỉ truyền khi test; bình thường để null.
   final TaskController? controller;
   const CalendarScreen({super.key, this.controller});
 

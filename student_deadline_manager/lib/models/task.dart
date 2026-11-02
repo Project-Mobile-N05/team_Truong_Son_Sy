@@ -9,13 +9,10 @@ DateTime _toDate(Object? v) {
   return DateTime.now();
 }
 
-/// Class Task trong Class Diagram: một deadline/công việc của sinh viên.
-/// id = id của Document trong collection `tasks`.
 class Task extends BaseEntity {
   /// Chủ sở hữu (FK -> users).
   final String userId;
 
-  /// Môn học liên quan (FK -> subjects), có thể không có.
   final String? subjectId;
   final String title;
   final TaskType? type;
@@ -73,7 +70,6 @@ class Task extends BaseEntity {
         'updatedAt': Timestamp.fromDate(updatedAt),
       };
 
-  /// Trả về bản sao có thay đổi. Muốn xóa môn học thì đặt [clearSubjectId].
   Task copyWith({
     String? id,
     String? subjectId,
@@ -99,13 +95,10 @@ class Task extends BaseEntity {
         updatedAt: DateTime.now(),
       );
 
-  /// Quá hạn: đã qua [taskDatetime] mà chưa hoàn thành.
-  /// [now] chỉ dùng khi viết unit test.
   bool isOverdue({DateTime? now}) =>
       status != TaskStatus.completed &&
       taskDatetime.isBefore(now ?? DateTime.now());
 
-  /// Trạng thái để hiển thị: tự chuyển thành [TaskStatus.overdue] khi quá hạn.
   TaskStatus displayStatus({DateTime? now}) =>
       isOverdue(now: now) ? TaskStatus.overdue : status;
 
@@ -119,8 +112,6 @@ class Task extends BaseEntity {
   }
 }
 
-/// Dữ liệu từ form thêm/sửa deadline (dto trong Class Diagram).
-/// Các trường có thể null để [TaskService] báo lỗi thiếu dữ liệu.
 class TaskDto {
   final String? title;
   final String? subjectId;
@@ -129,7 +120,6 @@ class TaskDto {
   final String? room;
   final String? notes;
 
-  /// null = giữ nguyên trạng thái hiện tại (khi sửa) hoặc [TaskStatus.pending] (khi tạo).
   final TaskStatus? status;
 
   const TaskDto({

@@ -5,8 +5,6 @@ import '../services/auth_service.dart';
 import '../services/reminder_service.dart';
 import '../services/task_service.dart';
 
-/// Một môn học để hiển thị tên và chọn trong form.
-/// Nối với module Môn học (Sơn) qua [SubjectLoader].
 class SubjectOption {
   final String id;
   final String name;
@@ -16,8 +14,6 @@ class SubjectOption {
 /// Hàm lấy danh sách môn học của user. Chưa truyền thì danh sách môn học rỗng.
 typedef SubjectLoader = Future<List<SubjectOption>> Function(String userId);
 
-/// Cầu nối giữa màn hình (Lịch, thêm/sửa deadline) và [TaskService].
-/// Giữ trạng thái màn hình: danh sách deadline, ngày đang chọn, tháng đang xem.
 class TaskController extends ChangeNotifier {
   final TaskService _service;
   final String? Function() _currentUid;
@@ -83,7 +79,6 @@ class TaskController extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Chuyển tháng: [delta] = -1 là tháng trước, 1 là tháng sau.
   void changeMonth(int delta) {
     _visibleMonth = DateTime(_visibleMonth.year, _visibleMonth.month + delta);
     notifyListeners();
@@ -138,8 +133,6 @@ class TaskController extends ChangeNotifier {
     });
   }
 
-  /// Thêm mới ([existing] = null) hoặc cập nhật deadline.
-  /// Trả về null nếu thành công, ngược lại là thông báo lỗi tiếng Việt.
   Future<String?> save({Task? existing, required TaskDto dto}) async {
     final err = await _run((uid) async {
       if (existing == null) {

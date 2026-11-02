@@ -4,15 +4,10 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'web_notification_stub.dart'
     if (dart.library.js_interop) 'web_notification_web.dart';
 
-/// Khóa của ScaffoldMessenger gốc (gắn vào MaterialApp trong main.dart),
-/// dùng để hiện thông báo ngay trong ứng dụng khi chạy trên web.
 final GlobalKey<ScaffoldMessengerState> appMessengerKey =
     GlobalKey<ScaffoldMessengerState>();
 
-/// Hiển thị thông báo nhắc nhở. Tách thành lớp trừu tượng để unit test
-/// thay bằng bản giả.
 abstract class DeviceNotifier {
-  /// Nền tảng hiện tại có hiển thị được thông báo không.
   bool get isSupported;
   Future<void> init();
   Future<void> show({
@@ -22,7 +17,6 @@ abstract class DeviceNotifier {
   });
 }
 
-/// Android/iOS: thông báo hệ thống. Web: thanh thông báo nổi trong ứng dụng.
 class LocalDeviceNotifier implements DeviceNotifier {
   final FlutterLocalNotificationsPlugin _plugin =
       FlutterLocalNotificationsPlugin();
@@ -35,7 +29,7 @@ class LocalDeviceNotifier implements DeviceNotifier {
   Future<void> init() async {
     if (_ready) return;
         if (kIsWeb) {
-      await requestWebNotificationPermission(); // trình duyệt sẽ hỏi Cho phép
+      await requestWebNotificationPermission();
       _ready = true;
       return;
     }
@@ -59,8 +53,6 @@ class LocalDeviceNotifier implements DeviceNotifier {
   }) async {
     if (!_ready) await init();
         if (kIsWeb) {
-      // Ưu tiên thông báo của trình duyệt; chưa được cấp quyền thì dùng
-      // thanh thông báo trong ứng dụng.
       if (!showWebNotification(title, body)) _showBanner(title, body);
       return;
     }
@@ -82,7 +74,6 @@ class LocalDeviceNotifier implements DeviceNotifier {
     );
   }
 
-  /// Thanh thông báo nổi trong ứng dụng (dùng khi chạy trên web).
   void _showBanner(String title, String body) {
     final messenger = appMessengerKey.currentState;
     if (messenger == null) {

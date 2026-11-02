@@ -1,7 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/base_entity.dart';
 
-/// Lỗi chung của tầng dữ liệu (Câu 8a: bắt lỗi).
 class RepositoryException implements Exception {
   final String message;
   const RepositoryException(this.message);
@@ -9,8 +8,6 @@ class RepositoryException implements Exception {
   String toString() => 'RepositoryException: $message';
 }
 
-/// ORM đơn giản: Object (BaseEntity) <-> Document (Firestore).
-/// Dùng chung cho users, subjects, tasks, reminders.
 class FirestoreRepository<T extends BaseEntity> {
   final CollectionReference<Map<String, dynamic>> _col;
   final T Function(String id, Map<String, dynamic> map) _fromMap;
@@ -53,7 +50,6 @@ class FirestoreRepository<T extends BaseEntity> {
         return snap.docs.map((d) => _fromMap(d.id, d.data())).toList();
       }, 'Đọc danh sách');
 
-  /// Các Document có [field] == [value] (vd: userId của người đăng nhập).
   Future<List<T>> findWhere(
     String field,
     Object value, {
@@ -61,7 +57,6 @@ class FirestoreRepository<T extends BaseEntity> {
   }) =>
       findWhereAll({field: value}, orderBy: orderBy);
 
-  /// Query documents matching all supplied equality filters.
   Future<List<T>> findWhereAll(
     Map<String, Object> filters, {
     String? orderBy,
@@ -76,7 +71,6 @@ class FirestoreRepository<T extends BaseEntity> {
         return snap.docs.map((d) => _fromMap(d.id, d.data())).toList();
       }, 'Đọc danh sách');
 
-  /// Tự cập nhật UI khi dữ liệu đổi (dùng với StreamBuilder).
   Stream<List<T>> watchAll() => _col.snapshots().map(
       (s) => s.docs.map((d) => _fromMap(d.id, d.data())).toList());
 }

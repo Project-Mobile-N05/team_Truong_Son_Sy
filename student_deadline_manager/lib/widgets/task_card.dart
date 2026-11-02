@@ -13,9 +13,6 @@ String formatDayMonth(DateTime d) => '${_two(d.day)}/${_two(d.month)}';
 /// HH:mm
 String formatTime(DateTime d) => '${_two(d.hour)}:${_two(d.minute)}';
 
-/// Thẻ một deadline trong danh sách (theo wireframe màn Lịch):
-/// tiêu đề, "Môn học · Trạng thái · Giờ" và nút "Xong".
-/// Deadline quá hạn hiển thị màu đỏ.
 class TaskCard extends StatelessWidget {
   final Task task;
   final String? subjectName;

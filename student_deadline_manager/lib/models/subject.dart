@@ -1,9 +1,4 @@
 import 'project_entity.dart';
-
-/// Môn học thuộc tài khoản Firebase hiện tại.
-///
-/// `teacher` và `credits` được giữ để tương thích với dữ liệu/chức năng cũ;
-/// các trường chính dùng tên đơn giản như trong schema mới.
 class Subject extends ProjectEntity<String> {
   final String userId;
   final String color;
@@ -51,6 +46,4 @@ class Subject extends ProjectEntity<String> {
   String getThongTinMonHoc() => 'Môn $name ($id).';
 }
 
-/// Compatibility alias while the remaining modules migrate from Vietnamese
-/// type naming to `Subject`.
 typedef MonHoc = Subject;

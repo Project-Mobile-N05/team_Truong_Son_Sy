@@ -3,13 +3,9 @@ import '../models/notification_status.dart';
 import '../models/reminder_data.dart';
 import '../services/reminder_service.dart';
 
-/// Cầu nối giữa ReminderScreen và [ReminderService].
-/// Giữ trạng thái màn hình: danh sách nhắc nhở, đang tải, lỗi.
-/// Tự tải lại khi dữ liệu nhắc nhở thay đổi ở bất kỳ đâu trong ứng dụng.
 class ReminderController extends ChangeNotifier {
   final ReminderService _service;
 
-  /// [service] chỉ truyền khi unit test.
   ReminderController({ReminderService? service})
       : _service = service ?? ReminderService() {
     ReminderService.changes.addListener(_onExternalChange);
@@ -34,7 +30,6 @@ class ReminderController extends ChangeNotifier {
     if (!_disposed) load(silent: true);
   }
 
-  /// Tải lại danh sách nhắc nhở. [silent] = true thì không hiện thanh đang tải.
   Future<void> load({bool silent = false}) async {
     if (_busy) {
       _again = true;
@@ -64,13 +59,11 @@ class ReminderController extends ChangeNotifier {
     }
   }
 
-  /// Bật/tắt. Trả về null nếu thành công, ngược lại là thông báo lỗi.
   Future<String?> setEnabled(ReminderData r, bool enabled) =>
       _run(() => _service.setEnabled(r, enabled));
 
   Future<String?> remove(ReminderData r) => _run(() => _service.remove(r.id!));
 
-  /// Chạy một thao tác. Danh sách tự tải lại nhờ [ReminderService.changes].
   Future<String?> _run(Future<void> Function() action) async {
     try {
       await action();
